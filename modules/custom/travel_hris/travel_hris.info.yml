@@ -1,0 +1,5 @@
+name: Travel HRIS Integration
+type: module
+description: Travel HRIS Integrations for ValueLabs Employees and Configuration
+core: 8.x
+package: Custom

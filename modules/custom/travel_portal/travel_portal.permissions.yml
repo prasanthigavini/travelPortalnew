@@ -1,0 +1,11 @@
+publish travel requests related to client:
+  title: 'Publish Travel Requests related to Client'
+  description: 'Publish Travel Requests related to Client.'
+
+publish travel requests related to employee:
+  title: 'Publish Travel Requests related to employee'
+  description: 'Publish Travel Requests related to employee.'
+
+publish travel requests related to sales:
+  title: 'Publish Travel Requests related to sales'
+  description: 'Publish Travel Requests related to sales.'

@@ -1,0 +1,13 @@
+diff --git a/core/lib/Drupal/Core/Field/EntityReferenceFieldItemList.php b/core/lib/Drupal/Core/Field/EntityReferenceFieldItemList.php
+index 3fa199b..59243ed 100644
+--- a/core/lib/Drupal/Core/Field/EntityReferenceFieldItemList.php
++++ b/core/lib/Drupal/Core/Field/EntityReferenceFieldItemList.php
+@@ -105,7 +105,7 @@ public static function processDefaultValue($default_value, FieldableEntityInterf
+    */
+   public function defaultValuesFormSubmit(array $element, array &$form, FormStateInterface $form_state) {
+     $default_value = parent::defaultValuesFormSubmit($element, $form, $form_state);
+-
++    $default_value = array_filter($default_value);
+     // Convert numeric IDs to UUIDs to ensure config deployability.
+     $ids = [];
+     foreach ($default_value as $delta => $properties) {

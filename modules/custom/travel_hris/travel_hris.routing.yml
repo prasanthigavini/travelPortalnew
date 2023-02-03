@@ -1,0 +1,19 @@
+
+travel_hris_config.hris_settings_form:
+  path: '/admin/config/travel_hris/settings'
+  defaults:
+    _form: '\Drupal\travel_hris\Form\SettingsHrisForm'
+    _title: 'SettingsHrisForm'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: TRUE
+
+travel_user_import.import_user:
+  path: '/travel-user-import'
+  defaults:
+    _title: 'Travel User Data Import'
+    _controller: '\Drupal\travel_hris\Controller\UserImportController::importUser'
+  requirements:
+    _permission: 'access administration pages'
+

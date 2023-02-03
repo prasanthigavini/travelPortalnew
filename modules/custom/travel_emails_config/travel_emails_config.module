@@ -1,0 +1,129 @@
+<?php
+/**
+ * Travel emails module file
+ */
+
+/**
+ * Implements hook_cron, to trigger HRIS api and get employee info daily once.
+ */
+
+use Drupal\Core\Mail\MailManagerInterface;
+use Drupal\Component\Utility\Html;
+use Drupal\Core\Mail\MailFormatHelper;
+
+/**
+ * Implement hook_cron to send Email Alert before Journey remainder
+ */
+function travel_emails_config_cron()
+{
+    if (!empty($_REQUEST['talerts'])) {
+
+        $mailManager = \Drupal::service('plugin.manager.mail');
+        $module = 'travel_emails_config';
+        $key = 'journey_alert';
+        $lang_code = \Drupal::currentUser()->getPreferredLangcode();
+
+        // get 1 day before journey details
+        $now = new DateTime();
+        $date_one_day = $now->modify('+1 day')->format('Y-m-d');
+        $result = getJourneyAlertRequestsDetails($date_one_day);
+        if (count($result) > 0) {
+            foreach ($result as $row) {
+                $to = $row['email'];
+                $to_emails = \Drupal::config('travel_emails_config.settings')->get('emails');
+                if (\Drupal::config('travel_emails_config.settings')->get('email_settings') == 'prod') {
+                    $to_emails = $to;
+                }
+                $mailManager->mail($module, $key, $to_emails, $lang_code, $row, NULL, true); // send mail
+            }
+        }
+
+        // get 3 days before journey details
+        $now = new DateTime();
+        $date_three_days = $now->modify('+3 day')->format('Y-m-d');
+        $result = getJourneyAlertRequestsDetails($date_three_days);
+        if (count($result) > 0) {
+            foreach ($result as $row) {
+                $to = $row['email'];
+                $to_emails = \Drupal::config('travel_emails_config.settings')->get('emails');
+                if (\Drupal::config('travel_emails_config.settings')->get('email_settings') == 'prod') {
+                    $to_emails = $to;
+                }
+                $mailManager->mail($module, $key, $to_emails, $lang_code, $row, NULL, true); // send mail
+            }
+        }
+
+        \Drupal::logger('mail_alert_before_journey')->notice('mail_alert_before_journey cron ran');
+    }
+}
+
+/**
+ * Implements hook_mail()
+ * @param $key
+ * @param $message
+ * @param $params
+ */
+function travel_emails_config_mail($key, &$message, $params)
+{
+    switch ($key) {
+        case 'journey_alert':
+            $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+            $message['from'] = \Drupal::config('system.site')->get('mail');
+            $message['subject'] = t('Upcoming Travel Reminder!');
+            $doube_quote = '"';
+            $body = "<p style='font-family: Calibri;'>Hi {$params['name']}, <br><br>This is to remind you about upcoming travel - {$doube_quote}<a href='{$params['url']}'>{$params['title']}</a>{$doube_quote} <br><br><br> -- Travel Portal team</p>";
+            $message['body'][] = $body;
+            break;
+    }
+}
+
+/**
+ * Get Journey requests by date(departure/return) travel
+ * @return array
+ */
+function getJourneyAlertRequestsDetails($date)
+{
+    $data = array();
+    try {
+        if (!empty($date)) {
+            $query = \Drupal::database()->query("SELECT MIN(node_field_data.nid) AS nid, MIN(paragraphs_item_field_data_node__field_itinerary.id) AS paragraphs_item_field_data_node__field_itinerary_id
+            FROM
+            {node_field_data} node_field_data
+            LEFT JOIN {node__field_itinerary} node__field_itinerary ON node_field_data.nid = node__field_itinerary.entity_id AND node__field_itinerary.deleted = '0'
+            LEFT JOIN {paragraphs_item_field_data} paragraphs_item_field_data_node__field_itinerary ON node__field_itinerary.field_itinerary_target_revision_id = paragraphs_item_field_data_node__field_itinerary.revision_id
+            LEFT JOIN {content_moderation_state_field_revision} content_moderation_state ON node_field_data.vid = content_moderation_state.content_entity_revision_id AND (content_moderation_state.content_entity_type_id = 'node' AND content_moderation_state.langcode = node_field_data.langcode)
+            LEFT JOIN {paragraph__field_departure_date} paragraphs_item_field_data_node__field_itinerary__paragraph__field_departure_date ON paragraphs_item_field_data_node__field_itinerary.id = paragraphs_item_field_data_node__field_itinerary__paragraph__field_departure_date.entity_id AND paragraphs_item_field_data_node__field_itinerary__paragraph__field_departure_date.deleted = '0'
+            LEFT JOIN {paragraph__field_return_date} paragraphs_item_field_data_node__field_itinerary__paragraph__field_return_date ON paragraphs_item_field_data_node__field_itinerary.id = paragraphs_item_field_data_node__field_itinerary__paragraph__field_return_date.entity_id AND paragraphs_item_field_data_node__field_itinerary__paragraph__field_return_date.deleted = '0'
+            WHERE (node_field_data.type IN ('travel_request')) AND (node_field_data.type IN ('travel_request')) AND ((content_moderation_state.workflow = 'travel_category_workflow') AND (content_moderation_state.moderation_state = 'published')) 
+            AND ((paragraphs_item_field_data_node__field_itinerary__paragraph__field_departure_date.field_departure_date_value = '{$date}') OR (paragraphs_item_field_data_node__field_itinerary__paragraph__field_return_date.field_return_date_value ='{$date}'))
+            GROUP BY node_field_data.nid");
+            $result = $query->fetchAll();
+
+            $data = array();
+
+            if (count($result) > 0) {
+                foreach ($result as $key => $row) {
+                    $request_id = $row->nid;
+                    $node = \Drupal\node\Entity\Node::load($request_id);
+                    $data[$key]['nid'] = $request_id;
+                    $data[$key]['url'] = $node->toUrl()->setAbsolute()->toString();
+                    $data[$key]['title'] = $node->getTitle();
+                    $requester_name = $node->get('field_employee_name')->getValue()[0]['value'] . ' ' . $node->get('field_employee_middle_name')->getValue()[0]['value'] . ' ' . $node->get('field_employee_last_name')->getValue()[0]['value'];
+                    $data[$key]['name'] = $requester_name;
+                    $data[$key]['email'] = $node->get('field_employee_email')->getValue()[0]['value'];
+                    $other_emp_uid = $node->get('field_other_traveler_uid')->getValue()[0]['target_id'];
+                    if (!empty($node->get('field_other_traveler_uid')->target_id)) {
+                        $traveler_emp = \Drupal\user\Entity\User::load($other_emp_uid);
+                        $data[$key]['name'] = $traveler_emp->get('field_full_name')->value;
+                        $data[$key]['email'] = $traveler_emp->get('mail')->value;
+                    }
+
+                }
+            }
+        }
+    } catch (Exception $e) {
+        \Drupal::logger('mail-log')->error($e->getMessage());
+    }
+
+    return $data;
+}

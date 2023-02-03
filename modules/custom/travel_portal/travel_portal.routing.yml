@@ -1,0 +1,8 @@
+travel_portal.otherempid:
+  path: '/check_others_empid'
+  defaults:
+    _controller: '\Drupal\travel_portal\Controller\TravelPortalController::checkOthersEmpid'
+  requirements:
+    _access: 'TRUE'
+  options:
+    no_cache: TRUE

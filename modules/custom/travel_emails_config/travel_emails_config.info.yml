@@ -1,0 +1,5 @@
+name: Travel Email Configuration
+type: module
+description: Travel Email Configuration
+core: 8.x
+package: Custom

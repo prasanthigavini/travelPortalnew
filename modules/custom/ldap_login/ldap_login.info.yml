@@ -1,0 +1,11 @@
+name: LDAP LOGIN
+type: module
+description: Create ldap login
+# core: 8.x
+package: Authentication
+
+# Information added by Drupal.org packaging script on 2019-03-25
+version: '8.x-1.1'
+core: '8.x'
+project: 'ldap_login'
+datestamp: 1521730701

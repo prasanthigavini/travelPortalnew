@@ -1,0 +1,99 @@
+<?php
+
+/**
+ * @file
+ * Contains ldap_login.module.
+ */
+use Drupal\Core\Form\FormStateInterface;
+
+/**
+ * Implementation of hook_form_alter()
+ */
+function ldap_login_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+    $current_user = \Drupal::currentUser();
+    $roles = $current_user->getRoles();
+
+    if ($form_id == 'user_form' && !in_array("administrator", $roles)) {
+        $form['account']['pass']['#access'] = FALSE;
+        $form['account']['current_pass']['#access'] = FALSE;
+    }
+    if ($form_id == 'user_login_form') {
+        $config = \Drupal::config('ldap_login.settings');
+        $ldapentity = $config->get('ldap_entity');
+        $ldap_entity = rtrim($ldapentity, ', ');
+        $options = explode(',', $ldap_entity);
+        foreach ($options as $option) {
+            $domain_option = explode('|', $option);
+            $opkey = trim($domain_option[0]);
+            $domain_options[$opkey] = $domain_option[1];
+        }
+        $select[] = t('Select');
+        $domain_options = array_merge($select, $domain_options);
+        $form['vl_entity'] = array(
+            '#type' => 'select',
+            '#options' => $domain_options,
+        );
+        // Add the LDAP user password validation before the user module's validation.
+        array_unshift($form['#validate'], '_user_login_form_validate');
+    }
+}
+
+/**
+ * Function to validate login form with AD
+ */
+function _user_login_form_validate($form, FormStateInterface &$form_state) {
+    $name = $form_state->getValue('name');
+    if ($name == 'admin' || $name == 'traveldesk' || $name == 'testEmployee' || $name == 'testPM' || $name == 'testdlt') {
+        return;
+    }
+    $pass = $form_state->getValue('pass');
+    $vl_entity = $form_state->getValue('vl_entity');
+    $ldap_password = $pass;
+    $ldap_username = $vl_entity . "\\" . $name;
+    $config = \Drupal::config('ldap_login.settings');
+    $ldapconfig = $config->get('ldap_config');
+    $ldap_config = rtrim($ldapconfig, ', ');
+    $ip_options = explode(',', $ldap_config);
+    foreach ($ip_options as $ip_option) {
+        $ipoption = explode('|', $ip_option);
+        $ipkey = trim($ipoption[0]);
+        $ipoptions[$ipkey] = $ipoption[1];
+    }
+    $ldap_ip = isset($ipoptions[$vl_entity]) ? $ipoptions[$vl_entity] : null;
+    $ldap_connection = ldap_connect($ldap_ip);
+
+    if (FALSE === $ldap_connection) {
+        $message = t('Server not available');
+        drupal_set_message($message, 'error');
+    }
+    // We have to set this option for the version of Active Directory we are using.
+    ldap_set_option($ldap_connection, LDAP_OPT_PROTOCOL_VERSION, 3) or die('Unable to set LDAP protocol version');
+    ldap_set_option($ldap_connection, LDAP_OPT_REFERRALS, 0); // We need this for doing an LDAP search.
+    if (TRUE === ldap_bind($ldap_connection, $ldap_username, $ldap_password)) {
+        $ldap_base_dn = 'DC=' . $vl_entity . ',DC=ads,DC=valuelabs,DC=net';
+        $result = ldap_search($ldap_connection, $ldap_base_dn, "samaccountname=" . $name);
+        if (FALSE !== $result) {
+            $entries = ldap_get_entries($ldap_connection, $result);
+            if (!empty($entries[0]['mail'][0])) {
+                $user_email = strtolower(trim($entries[0]['mail'][0]));
+                $result = user_load_by_mail($user_email);
+                $emp_uid = 0;
+                if (!empty($result)) {
+                    $form_state->setValue('name', $user_email);
+                    $form_state->setValue('pass', 'Travel@123');
+                }
+            }
+        } else {
+            $message = t('Invalid Login credentials. Please enter correct details');
+            drupal_set_message($message, 'error');
+            $log_message = t('User not found in LDAP Server.');
+            \Drupal::logger('ldap-search')->notice($log_message);
+        }
+        ldap_unbind($ldap_connection); // Clean up after ourselves.
+    } else {
+        // Display error in case server not available
+        $form_state->setErrorByName('name', t('Invalid Login credentials. Please enter correct details.'));
+        $bind_message = t('LDAP Server binding failed.');
+        \Drupal::logger('ldap-bind')->notice($bind_message);
+    }
+}

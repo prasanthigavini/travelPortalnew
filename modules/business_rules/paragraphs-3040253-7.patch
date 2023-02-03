@@ -1,0 +1,203 @@
+diff --git a/business_rules.module b/business_rules.module
+index dfd1ed1..0a75b29 100644
+--- a/business_rules.module
++++ b/business_rules.module
+@@ -10,7 +10,6 @@ use Drupal\business_rules\Events\BusinessRulesEvent;
+ use Drupal\Core\Entity\ContentEntityInterface;
+ use Drupal\Core\Entity\Display\EntityFormDisplayInterface;
+ use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+-use Drupal\Core\Entity\Entity;
+ use Drupal\Core\Entity\EntityFormInterface;
+ use Drupal\Core\Entity\EntityInterface;
+ use Drupal\Core\Field\Plugin\Field\FieldWidget\EntityReferenceAutocompleteWidget;
+@@ -20,6 +19,7 @@ use Drupal\Core\Routing\RouteMatchInterface;
+ use Drupal\Core\Url;
+ use Drupal\quickedit\Form\QuickEditFieldForm;
+ use Drupal\user\Entity\User;
++use Drupal\Core\Field\EntityReferenceFieldItemListInterface;
+ 
+ /**
+  * Implements hook_help().
+@@ -193,7 +193,12 @@ function business_rules_field_widget_form_alter(&$element, FormStateInterface $f
+   // Establish whether we're in a normal EntityForm context or an inline
+   // QuickeditFieldForm context and retrieve the entity from the respectively
+   // appropriate place.
+-  if ($form_object instanceof EntityFormInterface) {
++  if (isset($context['items']) && $context['items'] instanceof EntityReferenceFieldItemListInterface) {
++    /** @var EntityReferenceFieldItemListInterface $items */
++    $items = $context['items'];
++    $entity = $items->getEntity();
++  }
++  else if ($form_object instanceof EntityFormInterface) {
+     $entity = $form_object->getEntity();
+   }
+   else {
+@@ -205,7 +210,7 @@ function business_rules_field_widget_form_alter(&$element, FormStateInterface $f
+     }
+   }
+ 
+-  if ($entity instanceof Entity) {
++  if ($entity instanceof EntityInterface) {
+     // Check if the field is a dependent field.
+     /** @var \Drupal\Core\Field\FieldItemList $items */
+     $items         = $context['items'];
+diff --git a/js/update-options-command.js b/js/update-options-command.js
+index ab814c5..02b637a 100644
+--- a/js/update-options-command.js
++++ b/js/update-options-command.js
+@@ -6,16 +6,24 @@
+     var elementId = response.elementId;
+     var options = response.options;
+     var select = document.getElementById(elementId);
+-
+-    select.options.length = 0;
+-    for (var i = 0; i <= options.length; i++) {
+-      if (options.hasOwnProperty(i)) {
+-        select.options.add(new Option(options[i].value, options[i].key));
++    // Handle id's that changed by AJAX.
++    if (select === null) {
++      select = document.querySelector('[data-drupal-selector="' + response.elementId + '"]')
++    }
++    // Perform update only for valid select element.
++    if (select !== null) {
++      select.options.length = 0;
++      for (var i = 0; i <= options.length; i++) {
++        if (options.hasOwnProperty(i)) {
++          select.options.add(new Option(options[i].value, options[i].key));
++        }
+       }
++      if (response.multiple) {
++        select.setAttribute('multiple', 'multiple')
++      }
++      var event = new Event('change');
++      select.dispatchEvent(event);
+     }
+-
+-    var event = new Event('change');
+-    select.dispatchEvent(event);
+   };
+ 
+ })(jQuery, window, Drupal, drupalSettings);
+diff --git a/src/Ajax/UpdateOptionsCommand.php b/src/Ajax/UpdateOptionsCommand.php
+index c34bf7a..d931719 100644
+--- a/src/Ajax/UpdateOptionsCommand.php
++++ b/src/Ajax/UpdateOptionsCommand.php
+@@ -15,6 +15,8 @@ class UpdateOptionsCommand implements CommandInterface {
+ 
+   protected $options;
+ 
++  protected $multiple;
++
+   /**
+    * UpdateOptionsCommand constructor.
+    *
+@@ -22,10 +24,13 @@ class UpdateOptionsCommand implements CommandInterface {
+    *   The element html id.
+    * @param array $options
+    *   The element options [key, value].
++   * @param bool $multiple
++   *   'multiple' attribute of select.
+    */
+-  public function __construct($elementId, array $options) {
++  public function __construct($elementId, array $options, bool $multiple) {
+     $this->elementId = $elementId;
+     $this->options = $options;
++    $this->multiple = $multiple;
+   }
+ 
+   /**
+@@ -37,6 +42,7 @@ class UpdateOptionsCommand implements CommandInterface {
+       'method' => 'html',
+       'elementId' => $this->elementId,
+       'options' => $this->options,
++      'multiple' => $this->multiple,
+     ];
+   }
+ 
+diff --git a/src/Plugin/EntityReferenceSelection/BusinessRulesViewsSelection.php b/src/Plugin/EntityReferenceSelection/BusinessRulesViewsSelection.php
+index 1932b97..1cc98f9 100644
+--- a/src/Plugin/EntityReferenceSelection/BusinessRulesViewsSelection.php
++++ b/src/Plugin/EntityReferenceSelection/BusinessRulesViewsSelection.php
+@@ -18,6 +18,7 @@ use Drupal\Core\Url;
+ use Drupal\views\Views;
+ use Symfony\Component\DependencyInjection\ContainerInterface;
+ 
++
+ /**
+  * Plugin override of the 'selection' entity_reference.
+  *
+@@ -159,6 +160,27 @@ class BusinessRulesViewsSelection extends PluginBase implements SelectionInterfa
+ 
+     $entity = $form_state->getFormObject()->getEntity();
+     $trigger_field = $form_state->getTriggeringElement();
++    // Inline form marker.
++    $inline_form = FALSE;
++    if (isset($trigger_field['#parents'])) {
++      $parents = $trigger_field['#parents'];
++      if (in_array('subform', $parents, TRUE)) {
++        $parent_field_key = array_shift($parents);
++        /** @var \Drupal\field\Entity\FieldConfig $definition */
++        $definition = $entity->getFieldDefinition($parent_field_key);
++        if ($definition->getType() === 'entity_reference_revisions') {
++          $inline_form = TRUE;
++          $delta = array_shift($parents);
++          $widget = $form[$parent_field_key]['widget'][$delta];
++          if (isset($widget['#paragraph_type'])) {
++            // TODO: find way to extract real paragraph to avoid of empty paragraph creation.
++            $entity = \Drupal::entityTypeManager()->getStorage('paragraph')->create([
++              'type' => $widget['#paragraph_type'],
++            ]);
++          }
++        }
++      }
++    }
+ 
+     // Update children.
+     $children = $trigger_field['#ajax']['br_children'];
+@@ -214,14 +236,26 @@ class BusinessRulesViewsSelection extends PluginBase implements SelectionInterfa
+           'value' => t('-Select-'),
+         ]);
+ 
+-        $form_field = $form[$child];
++        if ($inline_form && isset($parent_field_key, $delta)) {
++          $form_field = $form[$parent_field_key]['widget'][$delta]['subform'][$child];
++        } else {
++          $form_field = $form[$child];
++        }
++
++
+         $form_field['widget']['#options'] = $options;
+         $html_field_id = explode('-wrapper-', $form_field['#id'])[0];
+ 
+         // Fix html_field_id last char when it ends with _.
+         $html_field_id = substr($child, strlen($child) - 1, 1) == '_' ? $html_field_id . '-' : $html_field_id;
+-
+-        $response->addCommand(new UpdateOptionsCommand($html_field_id, $options));
++        // Check if field is miltiple or not.
++        $multiple = FALSE;
++        /** @var \Drupal\field\Entity\FieldStorageConfig $storage_config */
++        $storage_config = $field_definition[$child]->getFieldStorageDefinition();
++        if ($storage_config->getCardinality() === -1) {
++          $multiple = TRUE;
++        }
++        $response->addCommand(new UpdateOptionsCommand($html_field_id, $options, $multiple));
+ 
+       }
+     }
+@@ -510,6 +544,16 @@ class BusinessRulesViewsSelection extends PluginBase implements SelectionInterfa
+     if (!$value && $entity) {
+       $value = $entity->get($field)->getString();
+     }
++    if (!$value && !$entity) {
++      // Try to extract values from nested entities.
++      if (isset($handler_settings['entity']) && $handler_settings['entity'] instanceof EntityInterface) {
++        // Handle paragraphs.
++        if ($handler_settings['entity']->getEntityTypeId() === 'paragraph') {
++          $value = $handler_settings['entity']->get($field)->getString();
++        }
++        // Here may be processors for another entity types.
++      }
++    }
+     if (is_array($value) && !empty($value[0]['target_id']) && preg_match('/\((\d+)\)$/', $value[0]['target_id'], $matches)) {
+       // If the field widget is entity autocomplete, the returned value is a
+       // string which contains the entity id.

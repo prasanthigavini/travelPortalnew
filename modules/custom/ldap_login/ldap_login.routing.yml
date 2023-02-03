@@ -1,0 +1,11 @@
+
+ldap_login.settings_ldap_form:
+  path: '/admin/config/ldap_login/settings'
+  defaults:
+    _form: '\Drupal\ldap_login\Form\SettingsLdapForm'
+    _title: 'SettingsLdapForm'
+  requirements:
+    _permission: 'access administration pages'
+  options:
+    _admin_route: TRUE
+

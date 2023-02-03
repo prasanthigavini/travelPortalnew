@@ -1,0 +1,2364 @@
+@font-face {
+  font-family: 'Roboto';
+  src: url("Roboto-Regular.ttf");
+  /*font-weight: normal;
+  font-style: normal;*/
+}
+
+.path-frontpage.user-not-logged-in div.background-image, body.user-not-logged-in div.background-image {
+    background: url("./images/VL_bg_new.jpg") no-repeat center center;
+    /* background: url("/travelportal/src/themes/corporate_lite/images/VL_bg.jpg") no-repeat center center fixed;*/
+    /* background-repeat: no-repeat; */
+    background-size: contain;
+    position: fixed;
+    top: 0;
+    left: 0;
+    min-width: 100%;
+    min-height: 100%;
+    opacity: 0.7;
+    width: 100%;
+    height: 100%;
+    background-repeat: none;
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
+}
+
+.region h1.page-title {
+    font-size: 20px;
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+body{
+    font-family: 'Roboto', sans-serif;
+}
+body.pff-43, ul.menu li > a:before {
+    font-family: 'Roboto', Helvetica Neue, Arial, sans-serif;
+}
+.col-md-12 .site-name a {
+    font-weight: 700;
+    font-size: 25px;
+}
+.hff-33 h1, .hff-33 h2, .hff-33 h3, .hff-33 h4, .hff-33 h5, .hff-33 h6, .hff-33 .tp-caption__title, 
+.hff-33 .tp-caption__subtitle, .hff-33 .field--name-field-mt-highlight-title, .sff-33 .site-name, 
+.slff-33 .site-slogan, .hff-33 .nav-tab__title, body.pff-43 {
+    font-family: 'Roboto', Helvetica Neue, Arial, sans-serif;
+}
+.path-frontpage.user-not-logged-in .content h1.page-title,
+.path-frontpage.user-not-logged-in .region-content .block-system-main-block div.content {
+	display: none;
+}
+
+.path-frontpage.user-not-logged-in .region--white-background {
+	background-color: transparent;
+}
+
+.path-pending-travel-requests div#main-content h1,
+.path-pending-travel-requests div#main-content p,
+.path-pending-travel-requests div#main-content th,
+.path-pending-travel-requests div#main-content td,
+.path-pending-travel-requests div#main-content td a {
+	color: #fff;
+}
+
+.path-pending-travel-requests div#main-content {
+	background-color: #61778c;
+	color: white;
+}
+
+.path-pending-travel-requests div#main-content td a:hover {
+	color: #42a0dd;
+}
+
+
+/************************/
+
+.page-node-type-travel-request .field-group-accordion-wrapper div.field {
+	padding: 0.5em 2.2em;
+}
+
+.page-node-type-travel-request .field-group-accordion-wrapper div.field.field--label-inline,
+.page-node-type-travel-request .field-group-accordion-wrapper div.field.field--label-above {
+	border-bottom: 1px solid #eaeaea;
+}
+
+.page-node-type-travel-request .field-group-accordion-wrapper div.field.field--label-inline:hover:not(.field--type-entity-reference-revisions) {
+	background-color: #eaeaea;
+}
+
+.title-background {
+    background: #D7D7D7;
+    line-height: 40px;
+    color: #000;
+    font-size: 100%;
+    font-weight: 400;
+}
+
+.page-node-type-travel-request .field-group-accordion-wrapper .paragraph--type--travellers div.field.field--label-inline:hover {
+	background-color: #eaeaea;
+}
+
+.page-node-type-travel-request .field-group-accordion-wrapper .ui-accordion-content .field--label-inline .field__label {
+    display: table;
+    width: 30%;
+    font-weight: 600;
+    font-family: 'Roboto';
+}
+
+.page-node-type-travel-request .field-group-accordion-wrapper .ui-accordion-content .field__item {
+    display: block;
+    font-family: 'Roboto';    
+}
+
+.page-node-type-travel-request .ui-accordion .ui-accordion-content {
+	padding: 0;
+}
+
+.page-node-type-travel-request .field-group-format-wrapper .field--label-inline {
+	padding: 1em 2.2em;
+}
+
+.user-logged-in.path-frontpage .views-view-table tbody tr:nth-of-type(odd),
+.path-pending-requests .views-view-table tbody tr:nth-of-type(odd) {
+	background-color: #eaeaea;
+}
+
+.user-logged-in.path-frontpage .views-view-table thead tr,
+.path-pending-requests .views-view-table thead tr,
+.user-logged-in #block-corporate-lite-content .views-view-table thead tr,
+.path-pending-requests .views-view-table thead tr {
+	background-color: #D7D7D7;
+	;
+}
+
+.user-logged-in #block-corporate-lite-content .views-view-table thead tr th {
+	color: #363636;
+	font-family: 'Roboto';
+	font-size: 15px;
+	text-transform: capitalize;
+	font-weight: normal;
+}
+
+.user-logged-in #block-corporate-lite-content .views-view-table tbody tr td {
+	color: #363636;
+	/*font-family: Tahoma;*/
+}
+
+.user-logged-in.path-frontpage td.views-field.views-field-edit-node a {
+	background: url(../../../../themes/corporate_lite/images/edit.png) no-repeat;
+	background-size: 25px 25px;
+	display: block;
+	color: transparent !important;
+}
+
+
+/* New changes applied from here */
+
+.user-logged-in #main-content {
+	background: #EBEBEB; /* #61778c;*/
+	color: #fff;
+	height: auto;
+	min-height: 100%;
+	padding-bottom: 20px;
+	overflow: auto;
+	max-height: 100%;
+	/* width: 100%;
+	padding-left: 90px;
+	padding-right: 90px; */
+}
+
+.user-logged-in .view-empty a {
+	color: #fff;
+	font-weight: 700;
+}
+
+.user-logged-in .tabs a.is-active {
+    background-color: #2FB6AF;
+    padding: 0px 10px;
+    border: none;
+    color: #FFF;
+}
+
+.user-logged-in .ui-accordion .ui-accordion-header {
+	background: #D7D7D7;
+}
+
+.user-logged-in .accordion-item .ui-accordion-header-icon.ui-icon {
+	margin-top: 1px;
+	margin-right: 10px;
+}
+
+.user-logged-in .ui-icon-triangle-1-e {
+	background-position: -34px -17px;
+}
+
+.user-not-logged-in .user-login-form {
+	width: 50%;
+	margin: 0 auto;
+}
+
+.user-not-logged-in .user-pass {
+	width: 50%;
+	margin: 0 auto;
+}
+
+.user-not-logged-in .block-user-login-block .content .item-list {
+	width: 50%;
+	left: 15px;
+	position: relative;
+	margin: 0 auto;
+}
+
+.ui-state-active .ui-icon,
+.ui-button:active .ui-icon {
+	background-image: url(images/ui-icons_444444_256x240.png);
+}
+
+.views-view-table tbody tr td a {
+	color: #5B42DD;
+}
+
+.user-logged-in.path-node #ui-id-2>div,
+.user-logged-in.path-node #ui-id-4>div,
+.user-logged-in.path-node #ui-id-6>div,
+.user-logged-in.path-node #ui-id-8>div,
+.user-logged-in.path-node #ui-id-10>div {
+	padding-left: 30px;
+	padding-right: 30px;
+}
+
+.user-logged-in.path-node #ui-id-2.field-group-accordion-item>div,
+.user-logged-in.path-node #ui-id-4.field-group-accordion-item>div,
+.user-logged-in.path-node #ui-id-6.field-group-accordion-item>div,
+.user-logged-in.path-node #ui-id-8.field-group-accordion-item>div,
+.user-logged-in.path-node #ui-id-10.field-group-accordion-item>div {
+	width: 50%;
+	float: left;
+	min-height: 90px;
+	height: auto;
+}
+
+.user-logged-in.path-node #ui-id-6 #edit-field-departure-date-0-value-date,
+.user-logged-in.path-node #ui-id-6 #edit-field-return-date-0-value-date {
+	min-width: 225px;
+	border: 1px solid #acacac;
+	border-radius: 4px;
+	height: 30px;
+	width: 100%;
+}
+
+.field--widget-datetime-default .form-type-date input.form-date {
+    border: 1px solid #acacac;
+    border-radius: 4px;
+    /*height: 32px;*/
+    margin-bottom: 5px;
+    width: 100%;
+    font-size: 15px;
+}
+
+.user-logged-in.path-node #ui-id-6 #edit-field-date-reporting-to-client-0 {
+	min-height: 198px;
+}
+
+.user-logged-in.path-node #ui-id-4>div select,
+.user-logged-in.path-node #ui-id-6>div select,
+.user-logged-in.path-node #ui-id-8>div select,
+.user-logged-in.path-node #ui-id-10>div select {
+	margin: 0;
+	/*height: 32px;*/
+}
+
+.user-logged-in.path-node #ui-id-10 #edit-field-travelers-information-wrapper {
+	float: left;
+	width: 100%;
+}
+
+#ui-id-6 #edit-field-itinerary-wrapper,
+#ui-id-2 #edit-field-itinerary-wrapper,
+#ui-id-8 #edit-field-itinerary-wrapper {
+	float: left;
+	width: 100%;
+}
+
+#edit-field-travelers-information-0-top-links-remove-button {
+	float: right;
+}
+
+.user-logged-in.path-node #ui-id-10 #edit-field-travelers-information-0-subform {
+	width: 100%;
+	float: none;
+	left: 0;
+	position: relative;
+}
+
+#node-travel-request-edit-form #ui-id-8 #edit-field-travelers-information-wrapper {
+	width: 100%;
+	float: left;
+}
+
+.block-corporate-lite-content #ui-id-10 #edit-field-travelers-information-0-subform>div {
+	width: 100%;
+	float: left;
+	height: 80px;
+	padding-right: 30px;
+}
+
+input[type="submit"],
+input[type="submit"]:focus {
+    background: #2EB6AE;
+    color: #fff;
+    top: 2px;
+    padding: 7px 23px;
+    position: relative;
+    border: none;
+    border-radius: 20px;
+    text-transform: none;
+}
+input[type="submit"]:hover {
+    background-color: #2aa89f;
+    border: none;
+}
+
+input.form-submit[name=field_itinerary_0_remove],
+input.form-submit[name=field_travelers_information_0_remove] {
+	display: none !important;
+}
+
+.user-logged-in .header-container {
+	overflow-x: #767676 hidden;
+}
+
+.user-logged-in.path-node #ui-id-8 .field--name-field-passport-validity:not(.field),
+.user-logged-in.path-node #ui-id-8 .field--name-field-visa-validity:not(.field) {
+	width: 25%;
+	float: left;
+}
+
+.user-not-logged-in .block-user-login-block .content,
+.user-not-logged-in .block-forgot-password-block .content {
+	width: 50%;
+	margin: 0 auto;
+}
+
+.ui-state-active a,
+.ui-state-active a:link,
+.ui-state-active a:visited {
+	color: #000;
+	text-decoration: none;
+}
+
+.site-name a,
+.site-name a:hover {
+	font-size: 25px;
+	font-weight: 700;
+	line-height: 1.1;
+	text-decoration: none;
+	color: #FFF;
+	border-left: 1px solid #e5e5e5;
+	padding-left: 10px;
+        margin-left: 10px;
+}
+
+.header__section ul.menu {
+	padding: 22px 0;
+}
+
+.field--entity-reference-target-type-taxonomy-term,
+.field--entity-reference-target-type-taxonomy-term.field__item {
+	margin: 0;
+}
+
+.tabs a:focus-within,
+.tabs a:active,
+.tabs a:visited {
+	background: none;
+}
+
+.tabs a:hover {
+	background: none;
+	font-weight: 700;
+}
+
+.paragraph--type--travellers .paragraph--view-mode--default {
+	border: 1px solid #ccc;
+	margin: 0 30px;
+}
+
+.form-item {
+	margin: 10px 0 3px 0;
+}
+
+.field--entity-reference-target-type-taxonomy-term .field__item {
+	margin-bottom: 0;
+	margin-top: 0;
+}
+
+input.form-text,
+input.form-tel,
+input.form-email,
+input.form-url,
+input.form-search,
+input.form-file,
+input.form-number,
+input.form-color,
+textarea,
+select {
+	padding: 3px 30px 3px 10px;
+}
+
+.user-logged-in .block-system-main-block {
+	background: #fff;
+	height: auto;
+	min-height: 100%;
+}
+
+.block-system-main-block .content {
+	margin: 30px;
+}
+
+.user-logged-in #block-corporate-lite-content {
+	padding-bottom: 30px;
+	height: auto;
+	min-height: 700px;
+	margin-bottom: 150px;
+}
+
+.views-exposed-form select,
+.entity-moderation-form select {
+	margin-top: 0;
+	/*height: 35px;*/
+}
+
+.profile .field--label-inline .field__label {
+    width: 30%;
+    padding: 10px;
+    font-family: 'Roboto';
+}
+
+.profile .field--label-inline .field__item {
+    width: 70%;
+    padding: 10px;
+    font-family: 'Roboto';
+}
+
+.entity-moderation-form input[type="submit"] {
+	margin-bottom: 1em;
+}
+
+.block-system-main-block .content .user-form .password-parent,
+.block-system-main-block .content .user-form .confirm-parent {
+	max-width: 48%;
+}
+
+.field--name-field-date-of-reporting-to-clien input.form-date {
+	min-width: 54%;
+	width: 54%!important;
+}
+
+.field--name-field-date-of-reporting-to-clien .fieldset-wrapper {
+	margin-top: -15px;
+}
+
+.field--name-field-date-of-reporting-to-clien fieldset {
+	padding-bottom: 0;
+}
+
+.field--name-field-date-of-reporting-to-clien input.form-time {
+	border-radius: 4px;
+	outline: none;
+	/*height: 32px;*/
+	border: 1px solid #acacac;
+	width: 44%;
+}
+
+.field--name-field-date-of-reporting-to-clien .fieldset-wrapper .description {
+	font-size: 10px;
+}
+
+#edit-field-itinerary-wrapper {
+	float: left;
+	width: 100%;
+}
+.user-logged-in #edit-field-justification-for-advance-wrapper #edit-field-justification-for-advance-0-value {
+	min-height: 164px;
+}
+
+.ui-accordion .ui-accordion-content {
+	padding: 1em .5em;
+}
+.myaccount_travel_profile_details .field-group-format-wrapper {
+	padding: 20px 30px;
+}
+
+.user-logged-in #block-corporate-lite-content .accordion-item .ui-accordion-header-icon.ui-icon {
+	margin-right: 3px;
+}
+
+.user-logged-in .region h1.page-title,
+.user-logged-in .views-exposed-form label,
+#block-corporate-lite-local-tasks nav ul li a, h1#block-corporate-lite-local-tasks nav ul li a {
+	color: #4F4F4F;
+}
+/*
+.user-logged-in .region h1.page-title, .user-logged-in .views-exposed-form label, #block-corporate-lite-local-tasks nav ul li a {
+    color: #fff;
+}*/
+.user-logged-in #edit-actions input,
+#edit-submit-my-travel-requests--XYURiFpOg40 {
+	color: #fff;
+}
+
+.user-logged-in .region-content label,
+.views-view-table thead tr th a {
+	color: #363636;
+	font-family: 'Roboto';
+	font-size: 15px;
+	font-weight: 600;
+	text-transform: capitalize;
+}
+
+.tabs>li:active, 
+#block-corporate-lite-local-tasks nav ul li.is-active {
+	/*border: 1px solid #fff;*/
+        color: #FFF;
+}
+
+#block-corporate-lite-local-tasks nav ul li a.is-active {
+    color: #FFF;
+}
+.user-logged-in.path-node #ui-id-6 #edit-field-departure-date-wrapper,
+.user-logged-in.path-node #ui-id-6 #edit-field-return-date-wrapper {
+	width: 25%;
+	float: left;
+	margin-top: 10px;
+}
+
+.user-logged-in.path-node #ui-id-8 .field--name-field-visa-validity:not(.field) {
+	width: 25%;
+	float: left;
+}
+
+.user-logged-in.path-node #ui-id-4 #edit-field-departure-date-wrapper,
+.user-logged-in.path-node #ui-id-4 #edit-field-return-date-wrapper {
+	width: 25%;
+	float: left;
+	margin-top: 10px;
+}
+
+.user-logged-in.path-node #ui-id-4 #edit-field-departure-date-wrapper .container-inline,
+.user-logged-in.path-node #ui-id-4 #edit-field-return-date-wrapper .container-inline {
+	margin: 4px 0;
+}
+
+.user-logged-in.path-node #ui-id-6 #edit-field-departure-date-wrapper .container-inline,
+.user-logged-in.path-node #ui-id-6 #edit-field-return-date-wrapper .container-inline {
+	margin: 4px 0;
+}
+
+.user-logged-in.path-node .approval-request-travellers-subform .container-inline:not(.block) {
+	margin: 6px 0;
+}
+
+.user-logged-in.path-node .approval-request-travellers-subform>div,
+.user-logged-in.path-node #ui-id-10 #edit-field-travelers-information-0-subform>div {
+	width: 50%;
+	float: left;
+	height: 90px;
+	padding-right: 30px;
+}
+
+table#field-visa-details-values .js-form-wrapper .form-wrapper {
+    padding-right: 30px;
+}
+table#field-visa-details-values tbody td .paragraph-type-top {
+    height: 40px;
+}
+div.field--name-field-visa-details {
+    padding:20px;
+}
+.field--name-field-visa-details .paragraph--type--visa-details  {
+    border-bottom: 2px solid #FFF; 
+}
+.js .field--widget-entity-reference-paragraphs .field-multiple-table {
+    margin-bottom: 0px;
+}
+#field-visa-details-add-more-wrapper .paragraphs-dropbutton-wrapper {
+    padding: 10px 30px;
+}
+.user-logged-in.path-node #ui-id-10 #edit-field-travelers-information-0-subform select,
+.block-system-main-block .content .user-form select {
+	height: 30px;
+	margin: 0;
+}
+
+.user-logged-in #block-corporate-lite-content .view-content table tbody tr:nth-child(odd),
+.profile .field--label-inline:nth-child(odd) {
+	background: #D7D7D7;
+}
+
+.user-logged-in #block-corporate-lite-content .view-content table tbody tr:nth-child(even),
+.profile .field--label-inline:nth-child(even) {
+	background: #F2F2F2;
+}
+
+.block-system-main-block .content .profile,
+.block-system-main-block .content .user-form #edit-account div,
+.user-logged-in #block-corporate-lite-content #user-pass p,
+.form-item-field-dlt-0-target-id div,
+#edit-user-picture-wrapper div {
+	color: #000;
+}
+
+a.tabledrag-handle .handle {
+	background: none;
+}
+
+
+.block-system-main-block .content .user-form #edit-account .form-item-current-pass,
+.block-system-main-block .content .user-form #edit-account .form-item-mail,
+.block-system-main-block .content .user-form #edit-field-employee-id-wrapper,
+.block-system-main-block .content .user-form #edit-field-employee-band-wrapper,
+.block-system-main-block .content .user-form #edit-field-name-wrapper,
+.block-system-main-block .content .user-form #edit-field-second-name-wrapper,
+.block-system-main-block .content .user-form #edit-field-surname-wrapper,
+.block-system-main-block .content .user-form #edit-field-gender-wrapper,
+.block-system-main-block .content .user-form #edit-field-contact-number-wrapper,
+.block-system-main-block .content .user-form #edit-field-project-manager-wrapper,
+.block-system-main-block .content .user-form #edit-field-dlt-wrapper,
+.block-system-main-block .content .user-form #edit-field-designation-wrapper,
+.block-system-main-block .content .user-form #edit-user-picture-wrapper,
+.block-system-main-block .content .user-form #edit-field-passport-number-wrapper,
+.block-system-main-block .content .user-form #edit-field-first-name-as-per-passport-wrapper,
+.block-system-main-block .content .user-form #edit-field-middle-name-as-per-passpor-wrapper,
+.block-system-main-block .content .user-form #edit-field-last-name-as-per-passport-wrapper,
+.block-system-main-block .content .user-form #edit-field-passport-validity-wrapper,
+.block-system-main-block .content .user-form #edit-field-meal-preference-wrapper,
+.block-system-main-block .content .user-form #edit-field-forex-card-number-wrapper,
+.block-system-main-block .content .user-form #edit-field-forex-card-expiry-date-wrapper,
+.block-system-main-block .content .user-form #edit-field-seat-preference-wrapper,
+.block-system-main-block .content .user-form #edit-field-frequent-flyer-number-wrapper{
+	width: 48%;
+	float: left;
+	margin-right: 20px;
+	min-height: 100px;
+}
+
+.block-system-main-block .content .user-form #edit-actions {
+	float: none;
+	clear: both;
+	top: 25px;
+	position: relative;
+}
+
+.header-first {
+	float: left;
+}
+
+.header-second {
+	float: right;
+}
+
+.header-container .container-fluid .logo-and-site-name-wrapper {
+	padding-left: 0px;
+}
+
+.user-logged-in .site-name .site-branding__name {
+	display: inline-block;
+}
+
+.user-logged-in .logo-and-site-name-wrapper {
+	margin: 0;
+}
+
+.dropbutton-multiple .dropbutton .dropbutton-action>* {
+	margin: 10px 20px;
+}
+
+.applyBorder {
+	border: 1px solid red !important;
+}
+
+.applyBorderRadius {
+	border-radius: 4px;
+}
+
+
+/* Changes on 21-01-19 */
+
+.content-moderation-entity-moderation-form>div {
+	width: 50%;
+	float: left;
+	padding-left: 20px;
+	padding-right: 30px;
+	background: #fff;
+}
+
+.entity-moderation-form {
+	margin: 0;
+}
+
+.content-moderation-entity-moderation-form {
+	border: 1px solid #bbb;
+	height: auto;
+	margin-top: 75px;
+	/*   min-height: 438px; */
+}
+
+.content-moderation-entity-moderation-form .js-form-item-departure-date,
+.content-moderation-entity-moderation-form .js-form-item-return-date {
+	float: left;
+	border-radius: 4px;
+	/* height: 32px */
+}
+
+.content-moderation-entity-moderation-form .js-form-item-departure-date #edit-departure-date,
+.content-moderation-entity-moderation-form .js-form-item-return-date #edit-return-date {
+	float: left;
+	border: 1px solid #acacac;
+	border-radius: 4px;
+	height: 32px
+}
+
+.node--unpublished {
+	background: #fff;
+}
+
+.content-moderation-entity-moderation-form h4 {
+	margin-left: 22px;
+}
+
+.site-name.site-branding__name {
+	padding-top: 5px;
+	display: inline-block;
+}
+
+.field span.field-check-review {
+	float: left;
+	width: 15%;
+	position: relative;
+	top: -4px;
+	left: 5px;
+}
+
+.field-check-review input[type="checkbox"] {
+	margin: -1px 0 3px 0;
+	height: 32px;
+	width: 32px;
+	top: 1px;
+	position: relative;
+}
+
+.field-check-review input:checked {
+	height: 32px;
+	width: 32px;
+}
+
+.field-check-review span {
+	top: -10px;
+	position: relative;
+	border: 1px solid #ccc;
+	padding-right: 8px;
+	background: #f5f5f5;
+	padding: 5px 12px 6px 12px;
+	border-radius: 4px;
+	margin-right: 6px;
+}
+
+.field-check-review input:checked+span {
+	color: #fff;
+	background: #369037;
+}
+
+.form-type-date input {
+	padding-left: 10px;
+}
+
+.field--name-field-itinerary {
+	overflow: hidden;
+}
+
+.field--name-field-itinerary .field__items {
+	width: 100%;
+}
+
+#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-wrapper {
+	height: auto;
+	max-height: 80px;
+}
+
+#edit-title-wrapper {
+	width: 48%;
+	overflow: hidden;
+	display: inline-block;
+}
+
+#edit-field-travel-id-wrapper {
+	width: 48%;
+	overflow: hidden;
+	display: inline-block;
+	float: right;
+}
+
+.field--name-field-justification-travel-mode textarea {
+	height: inherit !important;
+}
+/* #edit-field-itinerary-wrapper { width: 100% !important; float: left;}  */
+
+#edit-field-itinerary-0-subform>div {
+	width: 23%;
+	float: left;
+	/*height: 80px;*/
+	margin-right: 1.5%;
+}
+
+#edit-field-itinerary-0-subform-field-departure-date-wrapper,
+#edit-field-itinerary-0-subform-field-return-date-wrapper {
+	width: 23%;
+	float: left;
+}
+
+#edit-field-itinerary-0-subform-field-departure-date-0-value,
+#edit-field-itinerary-0-subform-field-return-date-0-value {
+	margin: 5px 0;
+}
+
+#field-itinerary-values tbody tr td:nth-child(2),
+#edit-field-itinerary-wrapper table tbody tr td:nth-child(2) {
+	/* height: 320px !important; */
+	vertical-align: top;
+}
+
+#edit-actions input[type="submit"] {
+	background: #2EB6AE;
+	color: #fff;
+	top: -5px;
+	padding: 9px 23px 8px;
+	position: relative;
+	border: none;
+        text-transform: none;
+        border-radius: 20px;
+}
+
+#edit-actions input[type="submit"]:hover {
+	background-color: #2aa89f;
+	border: none;
+}
+
+ul.entity-moderation-form {
+	clear: both;
+}
+
+.header-container ul.menu li a.is-active,
+.header-container ul.menu>li.active-trail>a {
+	margin-bottom: 0;
+}
+
+.header__container {
+	height: 60px;
+}
+
+.fixed-header-enabled.onscroll .header__section ul.menu {
+	padding-top: 22px;
+}
+
+#node-travel-request-edit-form #edit-field-travel-id-wrapper {
+	float: none;
+}
+
+#edit-field-requested-date-0-value {
+	margin: 5px 0;
+}
+
+.field-multiple-table .responsive-enabled>tbody>tr>td .paragraphs-subform>div,
+.draggable .paragraph-type--multicity .odd .paragraphs-subform>div,
+#edit-field-itinerary-wrapper .paragraphs-subform>div {
+	width: 23%;
+	float: left;
+	margin-right: 1.5%;
+	 height: 80px;
+	/* margin-bottom: 50px; */
+}
+
+.container-inline:not(.block) {
+	margin: 4px 0;
+}
+
+.form-textarea-wrapper textarea {
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
+
+.node-form .form-wrapper {
+	margin-top: 0;
+}
+
+.content-moderation-entity-moderation-form>div {
+	width: 100%;
+	float: left;
+	margin-top: 0px;
+	padding-left: 30px;
+	height: 58px;
+	border-bottom: 1px solid #ddd;
+}
+
+.entity-moderation-form {
+	border-left: none;
+	border-right: none;
+	padding-left: 30px;
+}
+
+.entity-moderation-form__item {
+	marign-right: 50px;
+}
+
+#edit-field-business-justification-wrapper .form-item-field-business-justification-0-value {
+	margin-top: 0;
+}
+
+.content-moderation-entity-moderation-form .section1 {
+	width: 24%;
+	float: left;
+	padding-top: 12px;
+}
+
+.content-moderation-entity-moderation-form .section2 {
+	width: 30%;
+	float: left;
+	padding-top: 12px;
+}
+
+.content-moderation-entity-moderation-form .section3 {
+	float: left;
+	padding-top: 12px;
+	width: 30%;
+	padding-left: 0;
+	margin-left: 0;
+	/* left: -430px; */
+	position: relative;
+}
+
+.content-moderation-entity-moderation-form .section3 input.custmform.form-text {
+	height: 30px;
+	top: -13px;
+	position: relative;
+}
+
+.content-moderation-entity-moderation-form .section3 #edit-project-name,
+#edit-client-name,
+#edit-travel-category,
+#edit-select-category,
+#edit-bill-category,
+#edit-nonbill-category,
+#edit-bill-emp,
+#edit-departure-date,
+#edit-return-date,
+#edit-reporting-datetime {
+	width: 100%;
+}
+
+.content-moderation-entity-moderation-form .section3 input#edit-reporting-datetime-time {
+	right: -6px;
+	position: relative;
+}
+
+.content-moderation-entity-moderation-form .section3 .custmform {
+	margin-top: 0;
+	width: 49%;
+	padding-top: 0;
+	top: -13px;
+	position: relative;
+	border-radius: 4px;
+}
+
+.content-moderation-entity-moderation-form .section3 .js-form-item-departure-date,
+.content-moderation-entity-moderation-form .section3 .js-form-item-return-date {
+	width: 100%;
+}
+
+.content-moderation-entity-moderation-form .section3 #edit-reporting-datetime {
+	padding-top: 24px;
+}
+
+.content-moderation-entity-moderation-form .section4 {
+	padding-top: 12px;
+	width: 10%;
+	float: left;
+	position: relative;
+	top: -3px;
+}
+
+.content-moderation-entity-moderation-form .section4 input:checked+span {
+	background: none;
+}
+
+.content-moderation-entity-moderation-form .field span.field-check-review input .editFieldCheckbox {
+	top: 36px;
+}
+
+#edit-field-travel-type-wrapper #edit-field-travel-type,
+#edit-field-travel-way-wrapper #edit-field-travel-way {
+    margin-top: 1px;
+    height: 27px;
+    font-size: 15px;
+}
+
+.paragraph-type--multicity .odd .paragraphs-subform .js-form-wrapper .form-wrapper>div {
+	width: 48%;
+	float: left;
+}
+
+#field-travelers-information-values tr:last-child td,
+#field-itinerary-values tr:last-child td,
+#edit-field-itinerary-wrapper table tr:last-child td,
+#edit-field-travelers-information-wrapper table tr:last-child td {
+	border-bottom: 4px solid #fff;
+	background: #eee;
+}
+
+#field-travelers-information-values tr th,
+#field-itinerary-values tr th,
+#edit-field-itinerary-wrapper table tr th,
+#edit-field-travelers-information-wrapper table tr th {
+	/* 	border-bottom: 1px solid #e69696;*/
+	background: #F2F2F2;
+	border-top-left-radius: 12px;
+	border-top-right-radius: 12px;
+}
+
+#edit-field-travelers-information-wrapper .odd td:nth-child(1),
+#edit-field-travelers-information-wrapper .even td:nth-child(1),
+#edit-field-travelers-information-wrapper .odd td:nth-child(2),
+#edit-field-travelers-information-wrapper .even td:nth-child(2),
+#edit-field-itinerary-wrapper .odd td:nth-child(1),
+#edit-field-itinerary-wrapper .odd td:nth-child(2),
+#edit-field-itinerary-wrapper .even td:nth-child(1),
+#edit-field-itinerary-wrapper .even td:nth-child(2) {
+    border-bottom: 4px solid #fff;
+    background: #F2F2F2;
+}
+
+
+/* #edit-field-itinerary-wrapper .odd td:nth-child(1) 
+#edit-field-itinerary-wrapper .even td:nth-child(1) { border-bottom-left-radius: 12px;} */
+
+.field--type-datetime .label,
+.field--type-datetime legend {
+	color: #363636;
+	font-family: 'Roboto';
+	font-size: 15px;
+	font-weight: 600;
+	margin-bottom: 0;
+	text-transform: capitalize;
+	margin-left: 0;
+}
+
+.field-multiple-table .paragraph-type-title {
+	opacity: 0;
+}
+
+.field-multiple-table .paragraph-type-title-show {
+	text-transform: uppercase;
+	font-weight: bold;
+	margin: 5px 0;
+}
+
+.view-empty {
+	color: #333333;
+}
+
+#edit-field-reference-attachments-wrapper .details-wrapper table tr td {
+	padding: 0;
+}
+
+#edit-field-reference-attachments-wrapper .details-wrapper table tr th:last-child {
+	text-align: right;
+}
+
+#edit-field-reference-attachments-wrapper .details-wrapper table tbody tr td:last-child {
+	text-align: right;
+}
+
+#edit-field-reference-attachments-wrapper .details-wrapper table tbody tr td:last-child input[type="submit"] {
+	top: 0;
+	margin: 3px 0;
+}
+
+#edit-field-reference-attachments-wrapper .details-wrapper table tbody tr td:last-child file {
+	padding-top: 3px;
+}
+
+.check-toggle {
+	background-color: #eee;
+	color: #0000ff;
+	height: 27px;
+	width: 90px;
+	outline: none;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	margin-left: 10px;
+	top: -3px;
+	position: relative;
+}
+
+.check-toggle.active {
+	background-color: #28b924;
+	color: #fff;
+}
+
+.check-toggle.inactive {
+	background-color: #eee;
+	color: #0000ff;
+}
+
+#block-corporate-lite-content .content {
+	color: #333333;
+}
+
+#block-corporate-lite-content #ui-id-6 #edit-field-travel-type-wrapper,
+#block-corporate-lite-content #ui-id-6 #edit-field-travel-way-wrapper,
+#block-corporate-lite-content #ui-id-6 #edit-field-traveler-contact-wrapper,
+#block-corporate-lite-content #ui-id-6 #edit-field-mode-of-travel-wrapper,
+#block-corporate-lite-content #ui-id-6 #edit-field-justification-travel-mode-wrapper {
+	width: 33.3% !important;
+}
+
+.user-logged-in.path-node #ui-id-4 #edit-field-requested-date-wrapper {
+	margin-top: 10px;
+}
+
+form label {
+	display: inline-block;
+	width: 100%;
+}
+
+.error {
+	color: red;
+	margin-left: 5px;
+	bottom: 15px;
+	font-size: 12px;
+	/* white-space: nowrap; */
+	/* mobile fix */
+	left: 0;
+}
+
+.content-moderation-entity-moderation-form .error {
+	position: relative;
+}
+
+label.error {
+	display: inline;
+}
+
+.user-logged-in #block-corporate-lite-content .view-content table tbody tr td {
+	white-space: nowrap;
+}
+
+.user-logged-in #block-corporate-lite-content .view-content table tbody tr td:before {
+	position: relative;
+	top: 0;
+	left: 0;
+}
+
+.view-pending-requests-related-to-client .view-content {
+	overflow-x: auto;
+}
+
+table tr td {
+	padding-left: 10;
+}
+
+.user-logged-in #block-corporate-lite-content .views-view-table thead tr th {
+	white-space: nowrap;
+}
+
+.field--name-field-date-of-reporting-to-clien input.form-time {
+	margin-top: 5px;
+}
+
+.field--name-field-date-of-reporting-to-clien .fieldset-wrapper .description {
+	font-size: 12px;
+	margin-left: 6px;
+	margin-top: -4px;
+}
+
+input:read-only {
+	background-color: #f3ebeb;
+}
+
+.field--name-field-traveler-type {
+	width: 100% !important;
+}
+
+.field--name-field-traveler-type select {
+	width: 49%;
+}
+
+.field--name-field-cluster-head input,
+#edit-field-cluster-head-wrapper {
+	display: none;
+}
+
+.views-field.views-field-title {
+	width: 10%;
+	white-space: normal !important;
+}
+
+.node-travel-request-edit-form .entity-content-form-footer {
+	display: none;
+}
+
+
+.field--name-title { height: 85px; }
+.field--name-field-travel-id { height: 75px; margin-bottom: 10px; }
+.node--view-mode-full .field--name-field-travel-id {
+	height: auto !important;
+}
+
+#edit-title-wrapper {
+	width: 48%;
+	margin-right: 3%;
+}
+.form-item-field-itinerary-0-subform-field-justification-for-advance--0-value .form-textarea-wrapper textarea {
+	margin-top: 5px;
+}
+.check-all-confirm:hover {
+    cursor: pointer;
+    background-color: #2aa89f;
+    color: #FFF;
+}
+
+.check-all-confirm {
+    user-select: none;
+    background-color: #2EB6AE;
+    margin: auto;
+    border-radius: 20px;
+    border-color: none;
+    color: #fff;
+    padding: 4px 10px;
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.all-active {
+	color: #fff;
+	background-color: #337ab7;
+}
+
+.user-not-logged-in .block-local-tasks-block,
+.user-not-logged-in .description,
+.user-not-logged-in .user-pass p {
+	display: none;
+}
+
+.user-not-logged-in .block-page-title-block {
+	text-align: center;
+}
+
+#node-travel-request-form #edit-field-travel-id-wrapper .form-submit:hover {
+	background-color: #767676;
+	border-color: #767676;
+}
+
+.user-logged-in #block-corporate-lite-content .view-content table tbody tr:nth-child(odd) {
+	background: none;
+}
+
+.user-logged-in #block-corporate-lite-content .view-content table tbody tr:nth-child(even) {
+	background: none;
+}
+
+.user-logged-in #block-corporate-lite-content .view-content table tbody tr td {
+	border-bottom: 1px solid #B7B7B7 !important;
+}
+
+.user-logged-in #block-corporate-lite-content .view-content table {
+	border: 1px solid #B7B7B7;
+}
+
+.draggable .paragraph-type--multicity .odd td:nth-child(1),
+.draggable .paragraph-type--multicity .even td:nth-child(1),
+.draggable .paragraph-type--multicity .odd td:nth-child(2),
+.draggable .paragraph-type--multicity .even td:nth-child(2) {
+	background: #eee;
+}
+
+#edit-field-itinerary-0-top-links-remove-button,
+#edit-field-travelers-information-0-top-links-remove-button {
+	margin-right: 20px;
+}
+
+#edit-field-travelers-information-wrapper .odd td:nth-child(2) .paragraphs-dropbutton-wrapper input {
+	margin-right: 20px;
+}
+
+#edit-field-travelers-information-wrapper .even td:nth-child(2) .paragraphs-dropbutton-wrapper input {
+	margin-right: 20px;
+}
+
+#edit-field-itinerary-wrapper .even td:nth-child(2) .paragraphs-dropbutton-wrapper input {
+	margin-right: 20px;
+}
+
+#edit-field-itinerary-wrapper .odd td:nth-child(2) .paragraphs-dropbutton-wrapper input {
+	margin-right: 20px;
+}
+
+.user-logged-in.path-node #ui-id-8.field-group-accordion-item>div,
+.user-logged-in.path-node #ui-id-8.field-group-accordion-item>div {
+	max-height: 100%;
+	height: 100%;
+}
+
+.form-inline-field.section-all {
+	height: 80px;
+	padding: 0;
+}
+
+.form-inline-field.section-all .hint-second-section {
+	padding-left: 10px;
+	padding-right: 10px;
+	padding-top: 5px;
+	padding-bottom: 5px;
+}
+
+.form-inline-field.section-all {
+	height: 88px;
+}
+
+.form-inline-field.section-all .hint-title {
+	font-size: inherit;
+	padding-left: 10px;
+	color: #000;
+	text-transform: uppercase;
+}
+
+.form-inline-field.section-all .hint-text {
+	font-size: 11px;
+	clear: both;
+}
+
+.user-logged-in .view-empty a {
+	color: #000;
+	font-weight: 700;
+}
+
+.field__items .itinerary-section-wrapper {
+	margin: 20px 10px;
+	border: 1px solid #ccc;
+}
+
+.field__items .itinerary-title {
+	padding-left: 10px;
+	text-transform: uppercase;
+}
+
+.field--name-field-first-name .description {
+	left: 6px;
+	top: 1px;
+	position: relative;
+}
+
+table .one-list-style ul li {
+	list-style: circle;
+}
+
+.title-section-1 {
+	display: inline-grid;
+	width: 54%;
+	float: left;
+}
+
+.title-section-2 {
+	display: inline-grid;
+	float: left;
+}
+
+.country-info-container {
+	display: block !important;
+}
+
+.country-info-container div {
+	display: inline;
+}
+
+.reports-page .bef-exposed-form .form-item-field-departure-date-value-min .small-char {
+	font-weight: normal;
+	font-size: 12px;
+}
+
+.field--name-field-isnew.form-wrapper {
+	display: none;
+}
+
+.block-user-login-block a.request-password-link {
+	display: none;
+}
+
+.block-user-login-block .item-list ul {
+	display: none;
+}
+
+@-moz-document url-prefix() {
+	.field--name-field-justification-for-advance- textarea {
+		height: 3em;
+	}
+}
+.header-second .humburger-menu { display: none;}
+.navbar { margin-bottom: 0; min-height:0;}
+.navbar-collapse {
+    padding-right: 0;
+    float: right;
+    right: -15px;
+    position: relative;
+	top: 10px;
+}
+
+/* Media Quaries */
+/* Large screens ----------- */
+
+@media only screen and (min-width:1680px) {
+	.form-inline-field.section-all .hint-second-section {
+		padding-left: 10px;
+		padding-right: 10px;
+		padding-top: 5px;
+	}
+	#edit-field-itinerary-wrapper .paragraphs-subform>div {
+		margin-bottom: 50px !important;
+	}
+}
+
+@media only screen and (min-width:1366px) and (max-width: 1679px) {
+	.field--name-field-date-of-reporting-to-clien .form-type-date input.form-date {
+		min-width: 54%;
+		width: 54%;
+	}
+	.field-multiple-table .responsive-enabled>tbody>tr>td .paragraphs-subform>div,
+	.draggable .paragraph-type--multicity .odd .paragraphs-subform>div,
+	.field--name-field-date-of-reporting-to-clien,
+	.field--name-field-accommodation-required {
+		margin-bottom: 40px !important;
+	}
+	.field--name-field-date-of-reporting-to-clien .form-type-date input.form-time {
+		min-width: 44%;
+		width: 44%;
+	}
+	#edit-field-itinerary-wrapper .paragraphs-subform>div {
+		width: 48%;
+	}
+	#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-wrapper {
+		min-height: 80px;
+	}
+	.field--name-field-date-of-reporting-to-clien div.fieldset-wrapper {
+		margin-top: -15px;
+	}
+	.form-inline-field.section-all .hint-text {
+		width: 500px;
+		top: 0px;
+		position: relative;
+	}
+}
+
+@media only screen and (max-width: 1366px) {
+	#block-corporate-lite-content .content .view-content {
+		overflow-x: auto;
+	}
+	.user-logged-in #block-corporate-lite-content .view-content table tbody tr td {
+		white-space: normal !important;
+	}
+}
+
+@media only screen and ( min-width:1200px) and (max-width: 1365px) {
+	.header__section.header-first {}
+	.header__section.header-second {}
+	.user-logged-in.path-node #ui-id-6 #edit-field-return-date-wrapper {
+		padding-left: 10px
+	}
+	.user-logged-in.path-node #ui-id-6 #edit-field-date-reporting-to-client-wrapper fieldset legend {
+		margin-bottom: 10px;
+		margin-left: 0;
+	}
+	.user-logged-in.path-node #ui-id-6 #edit-field-departure-date-0-value-date,
+	.user-logged-in.path-node #ui-id-6 #edit-field-return-date-0-value-date {
+		min-width: 200px;
+	}
+	input#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-0-value-date {
+		min-width: 54%;
+		width: 54%;
+	}
+	input#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-0-value-time {
+		min-width: 44%;
+		width: 44%;
+	}
+	#field-itinerary-values tbody tr td:nth-child(2),
+	#edit-field-itinerary-wrapper table tbody tr td:nth-child(2) {
+		height: 520px !important;
+	}
+	#edit-field-itinerary-wrapper .paragraphs-subform>div {
+		width: 48%;
+	}
+	.content-moderation-entity-moderation-form>div {
+		padding-right: 10px;
+	}
+	.form-inline-field.section-all .hint-text {
+		width: 400px;
+		top: -9px;
+		position: relative;
+	}
+	/*#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-wrapper {min-height: 151px;}  */
+	.field--name-field-date-of-reporting-to-clien,
+	.field--name-field-accommodation-required {
+		margin-bottom: 40px !important;
+	}
+	.touchevents a.tabledrag-handle { float: none;  }
+	 #edit-field-reference-attachments-wrapper .responsive-enabled>tbody>tr>td div.form-managed-file { top: -27px;
+    position: relative;} 
+}
+
+@media only screen and (min-width: 1025px) and (max-width: 1199px) {
+	.header-second {
+		float: right;
+	}
+	#field-itinerary-values tbody tr td:nth-child(2),
+	#edit-field-itinerary-wrapper table tbody tr td:nth-child(2) {
+		height: 460px !important;
+	}
+	.header-container ul.menu li {
+		width: auto;
+	}
+	input#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-0-value-date {
+		min-width: 54%;
+		width: 54%;
+	}
+	input#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-0-value-time {
+		min-width: 44%;
+		width: 44%;
+	}
+	#edit-field-itinerary-wrapper .paragraphs-subform>div {
+		width: 48%;
+	}
+	/* #edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-wrapper {min-height: 125px;} */
+	/* #edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-wrapper fieldset { min-height: 146px;} */
+	.content-moderation-entity-moderation-form>div {
+		padding-right: 10px;
+	}
+	.form-inline-field.section-all .hint-text {
+		width: 400px;
+		top: -9px;
+		position: relative;
+	}
+	/* #edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-wrapper {min-height: 151px;}  */
+	.field--name-field-date-of-reporting-to-clien,
+	.field--name-field-accommodation-required {
+		margin-bottom: 55px !important;
+	}
+	.touchevents a.tabledrag-handle { float: none; margin-top: -30px; }
+	#edit-field-reference-attachments-wrapper .responsive-enabled>tbody>tr>td div.form-managed-file { top: -27px;
+    position: relative;}
+}
+
+@media only screen and (min-width: 768px) and (max-width: 1024px) {
+	.navbar-collapse { top: 0;}
+	.user-logged-in.path-node #ui-id-6 #edit-field-return-date-wrapper {
+		padding-left: 10px
+	}
+	.user-logged-in.path-node #ui-id-6 #edit-field-departure-date-0-value-date,
+	.user-logged-in.path-node #ui-id-6 #edit-field-return-date-0-value-date {
+		min-width: 125px;
+	}
+	.header-container .container-fluid .logo-and-site-name-wrapper {
+		padding-left: 0;
+	}
+	.header-first {
+		float: left;
+	}
+	.header-second {
+		float: right;
+	}
+	.header__section ul.menu { margin-top: -12px; margin-bottom: 10px;}
+	.block-corporate-lite-branding .logo-and-site-name-wrapper {
+		float: left;
+		margin: 0;
+	}
+	.site-name.site-branding__name {
+		padding-top: 5px;
+		display: inline-block;
+		margin-left: 20px;
+	}
+	.user-logged-in #main-content {
+		padding-left: 0;
+		padding-right: 0;
+	}
+	.header__section ul.menu {
+		vertical-align: middle;
+		padding: 0;
+	}
+	.block-system-main-block .content {
+		margin: 10px;
+	}
+	.field--widget-datetime-default .form-type-date input.form-date {
+		min-width: 125px;
+	}
+	.user-logged-in.path-node #ui-id-2>div,
+	.user-logged-in.path-node #ui-id-4>div,
+	.user-logged-in.path-node #ui-id-6>div,
+	.user-logged-in.path-node #ui-id-8>div,
+	.user-logged-in.path-node #ui-id-10>div {
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+	.site-name.site-branding__name {
+		display: inline-block;
+	}
+	.header-container ul.menu li {
+		display: inline-block;
+		width: auto;
+	}
+	table tr th {
+		padding: 12px;
+	}
+	input#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-0-value-date {
+		min-width: 54%;
+		width: 54%;
+	}
+	input#edit-field-itinerary-0-subform-field-date-of-reporting-to-clien-0-value-time {
+		min-width: 44%;
+		width: 44%;
+	}
+	#field-itinerary-values tbody tr td:nth-child(2),
+	#edit-field-itinerary-wrapper table tbody tr td:nth-child(2) {
+		height: 530px !important;
+	}
+	#edit-field-itinerary-wrapper .paragraphs-subform>div {
+		width: 48%;
+	}
+	.field--name-field-date-of-reporting-to-clien,
+	.field--name-field-accommodation-required {
+		margin-bottom: 66px !important;
+	}
+	.content-moderation-entity-moderation-form>div {
+		padding-right: 10px;
+	}
+	.form-inline-field.section-all .hint-text {
+		width: 400px;
+		top: -10px;
+		position: relative;
+	}
+	.field--name-field-date-of-reporting-to-clien {
+		height: 130px;
+		min-height: 130px;
+	}
+	/* Fixing responsive issues starts */
+	.field--name-field-date-of-reporting-to-clien {
+		/* height: 32px; */
+		height: auto;
+		min-height: 32px;
+		clear: left;
+	}
+	.page-node-type-travel-request .field-group-accordion-wrapper .ui-accordion-content .field--label-inline .field__label {
+		width: 50%;
+	}
+	.content-moderation-entity-moderation-form .section1,
+	.content-moderation-entity-moderation-form .section2 {
+		width: 40%;
+	}
+	.entity-moderation-form input[type="submit"] {
+		margin-bottom: 0.5em;
+	}
+	.field--name-field-justification-for-advance-.field--widget-string-textarea,
+	.field--name-field-accomodation-preference.field--widget-options-select  { height: 90px !important; }
+	.touchevents a.tabledrag-handle { float: none; margin-top: -30px; }
+	#edit-field-reference-attachments-wrapper .responsive-enabled>tbody>tr>td div.form-managed-file { top: -27px;
+    position: relative;}
+	.touchevents .draggable .menu-item__link { display: inline-block; padding: 0; }
+	
+	/* Fixing responsive issues end */
+}
+
+@media only screen and (max-width: 767px) {
+	.header-second .humburger-menu { display: block;}
+	.header-second .mobile-menu { 
+		margin-bottom: 20px;
+	}
+	.navbar-collapse {
+      padding-left: 0;
+    }
+    .navbar {
+      background: #ffffff;
+    }
+	.navbar-collapse {
+		left: -8px;
+		position: relative;
+		top: 15px;
+	}
+    .navbar-nav {
+      list-style-type: none;
+    }
+	.header-first { padding:0;}
+    .navbar-toggler {
+      padding: .25rem .75rem;
+      font-size: 1.25rem;
+      line-height: 1;
+      background-color: transparent;
+      border: 1px solid transparent;
+      border-radius: .25rem;
+      position: relative;
+    }
+
+    .navbar .navbar-brand {
+		font-size: 30px;
+		font-weight: 700;
+		text-decoration: none;
+		color: #0000A0;
+		padding: 10px 0 0 0;
+		height: 0;
+		font-family: 'Roboto', 'Fira Sans', Helvetica Neue, Arial, Sans-serif;
+    }
+
+    .navbar button {
+      float: right;
+      background: #000;
+	  top: 3px;	
+    }
+
+    .navbar-toggler:focus,
+    .navbar-toggler:active {
+      outline: 0;
+    }
+
+    .navbar-toggler span {
+      display: block;
+      background-color: #fff;
+      height: 3px;
+      width: 25px;
+      margin-top: 4px;
+      margin-bottom: 4px;
+      -webkit-transform: rotate(0deg);
+      transform: rotate(0deg);
+      left: 0;
+      opacity: 1;
+    }
+
+    .navbar-nav>li>a {
+      line-height: 35px;
+    }
+
+    .navbar-toggler span:nth-child(1),
+    .navbar-toggler span:nth-child(3) {
+      transition: -webkit-transform .35s ease-in-out;
+      transition: transform .35s ease-in-out;
+      transition: transform .35s ease-in-out, -webkit-transform .35s ease-in-out;
+    }
+
+    .navbar-toggler:not(.collapsed) span:nth-child(1) {
+      position: absolute;
+      left: 9px;
+      top: 7px;
+      -webkit-transform: rotate(135deg);
+      transform: rotate(135deg);
+      opacity: 0.9;
+      background-color: #fff;
+    }
+
+    .navbar-toggler:not(.collapsed) span:nth-child(2) {
+      height: 12px;
+      visibility: hidden;
+    }
+
+    .navbar-toggler:not(.collapsed) span:nth-child(3) {
+      position: absolute;
+      left: 9px;
+      top: 7px;
+      -webkit-transform: rotate(-135deg);
+      transform: rotate(-135deg);
+      opacity: 0.9;
+      background-color: #fff
+    }
+    .system-messages .messages--success.welcome_msg { 
+        padding-right: 0 !important;
+    }
+	.messages { padding: 0; }
+	.header__container { padding: 0;}
+	.col-md-12 .site-branding__logo {display: block;
+     margin-bottom: 0; 
+	}
+	
+	.header__section ul.menu {
+		padding: 0;
+	}
+	.user-logged-in #main-content {
+		padding-left: 0;
+		padding-right: 0;	
+	}
+	.user-logged-in.path-node #ui-id-2.field-group-accordion-item>div,
+	.user-logged-in.path-node #ui-id-4.field-group-accordion-item>div,
+	.user-logged-in.path-node #ui-id-6.field-group-accordion-item>div,
+	.user-logged-in.path-node #ui-id-8.field-group-accordion-item>div,
+	.user-logged-in.path-node #ui-id-10.field-group-accordion-item>div {
+		width: 100%;
+		float: left;
+		min-height: 80px;
+		height: auto;
+	}
+	.block-system-main-block .content {
+		margin: 10px;
+	}
+	.user-logged-in.path-node #ui-id-2>div,
+	.user-logged-in.path-node #ui-id-4>div,
+	.user-logged-in.path-node #ui-id-6>div,
+	.user-logged-in.path-node #ui-id-8>div,
+	.user-logged-in.path-node #ui-id-10>div {
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+	.site-name.site-branding__name {
+		display: none;
+	}
+	.logo-and-site-name-wrapper .logo {
+		float: left;
+	}
+	.header-second {
+		float: left;
+		width: 100%;
+	}
+	.header-container ul.menu li a {
+		color: #666666;
+	}
+	.header-container ul.menu li a.is-active,
+	.header-container ul.menu>li.active-trail>a {
+		color: #0000A0;
+		font-weight: bold;
+		border-bottom: none;
+		padding-bottom: 7px;
+	}
+	.user-logged-in.path-node #ui-id-6 #edit-field-departure-date-wrapper,
+	.user-logged-in.path-node #ui-id-6 #edit-field-return-date-wrapper {
+		float: left;
+		width: 100%;
+		margin-top: 0;
+	}
+	.user-logged-in.path-node .approval-request-travellers-subform>div,
+	.user-logged-in.path-node #ui-id-10 #edit-field-travelers-information-0-subform>div {
+		width: 100%;
+		float: left;
+		height: 80px;
+		padding-right: 10px;
+	}
+	.touchevents a.tabledrag-handle {
+		height: 44px;
+		width: 10px;
+	}
+
+	.block-system-main-block .content .user-form #edit-account .form-item-current-pass,
+	.block-system-main-block .content .user-form #edit-account .form-item-mail,
+	.block-system-main-block .content .user-form #edit-field-employee-id-wrapper,
+	.block-system-main-block .content .user-form #edit-field-employee-band-wrapper,
+	.block-system-main-block .content .user-form #edit-field-name-wrapper,
+	.block-system-main-block .content .user-form #edit-field-second-name-wrapper,
+	.block-system-main-block .content .user-form #edit-field-surname-wrapper,
+	.block-system-main-block .content .user-form #edit-field-gender-wrapper,
+	.block-system-main-block .content .user-form #edit-field-contact-number-wrapper,
+	.block-system-main-block .content .user-form #edit-field-project-manager-wrapper,
+	.block-system-main-block .content .user-form #edit-field-dlt-wrapper,
+	.block-system-main-block .content .user-form #edit-user-picture-wrapper {
+		width: 100%;
+		float: left;
+		margin-right: 20px;
+	}
+	.profile .field--label-inline .field__label {
+		width: 42%;
+	}
+	.user-not-logged-in .user-login-form {
+		width: 85%;
+		margin: 0 auto;
+	}
+	.user-not-logged-in .block-user-login-block .content {
+		width: 100%;
+		margin: 0 auto;
+	}
+	.user-not-logged-in .block-user-login-block .content .item-list {
+		width: 100%;
+		left: 50px;
+		position: relative;
+		margin: 0 auto;
+	}
+	.user-logged-in .logo-and-site-name-wrapper {
+		margin: 0 -20px;
+	}
+	.site-name a,
+	.site-name a:hover {
+		/* font-size: 21px !important;
+		padding-left: 3px;
+		margin-left: -22px;
+		float: left; */
+	}
+	.view-my-travel-requests .form-actions.form-wrapper {
+		clear: inherit;
+		margin: 0;
+		float: left;
+	}
+	#block-corporate-lite-content .view-pending-requests-related-to-client .view-empty {
+		color: #000;
+	}
+	.block-system-main-block .content .user-form .password-parent,
+	.block-system-main-block .content .user-form .confirm-parent {
+		max-width: 100%;
+	}
+	
+	/* Force table to not be like tables anymore */
+	/* 	table,
+	thead,
+	tbody,
+	th,
+	td,
+	tr {
+		display: block;
+	} */
+	/* Hide table headers (but not display: none;, for accessibility) */
+	/* table tr td {
+		padding: 12px 20px;
+		text-align: left;
+		padding-left: 145px;
+	}
+	thead tr {
+		position: absolute;
+		top: -9999px;
+		left: -9999px;
+	}
+	tr {
+		margin: 0 0 1rem 0;
+	}
+	tr:nth-child(odd) {
+		background: #eee;
+	}
+	td {
+		border: none;
+		border-bottom: 1px solid #eee;
+		position: relative;
+		padding-left: 50%;
+	}
+	td:before {
+		position: absolute;
+		top: 12px;
+		left: 3px;
+		width: 40%;
+		padding-right: 10px;
+		white-space: nowrap;
+		text-transform: capitalize;
+		font-weight: bold;
+		color: #333;
+		font-size: 14px;
+	} */
+	#edit-field-travelers-information-wrapper table tbody tr {
+		background: none;
+	}
+	.profile .field--label-inline .field__item {
+		width: 100%;
+		padding: 10px;
+	}
+	/*
+		Label the data
+    You could also use a data-* attribute and content for this. That way "bloats" the HTML, this way means you need to keep HTML and CSS in sync. Lea Verou has a clever way to handle with text-shadow.
+		*/
+	/*
+	.views-element-container .views-table td:nth-of-type(1):before {
+		content: "Title";
+	}
+	.views-element-container .views-table td:nth-of-type(2):before {
+		content: "Employee Name";
+	}
+	.views-element-container .views-table td:nth-of-type(3):before {
+		content: "Destination";
+	}
+	.views-element-container .views-table td:nth-of-type(4):before {
+		content: "Project";
+	}
+	.views-element-container .views-table td:nth-of-type(5):before {
+		content: "Travel Category";
+	}
+	.views-element-container .views-table td:nth-of-type(6):before {
+		content: "Date of Travel";
+	}
+	.views-element-container .views-table td:nth-of-type(7):before {
+		content: "Current Status";
+	}
+	
+	*/
+	#edit-field-traveler-contact-wrapper {
+		width: 100%;
+		float: left;
+	}
+	#edit-title-wrapper {
+		width: 100%;
+		display: inline-block;
+	}
+	#edit-field-travel-id-wrapper {
+		width: 100%;
+		overflow: hidden;
+		float: none;
+	}
+	.field-multiple-table .responsive-enabled>tbody>tr>td .paragraphs-subform>div,
+	.draggable .paragraph-type--multicity .odd .paragraphs-subform>div,
+	#edit-field-itinerary-wrapper .paragraphs-subform>div {
+		width: 100%;
+	}
+	#edit-field-travelers-information-0-subform-field-first-name-wrapper {
+		height: 100px;
+	}
+	#views-exposed-form-my-travel-requests-page-1 .form-item-field-travel-categories-target-id {
+		width: 98%;
+	}
+	#block-corporate-lite-content #ui-id-6 #edit-field-travel-type-wrapper,
+	#block-corporate-lite-content #ui-id-6 #edit-field-travel-way-wrapper,
+	#block-corporate-lite-content #ui-id-6 #edit-field-traveler-contact-wrapper,
+	#block-corporate-lite-content #ui-id-6 #edit-field-mode-of-travel-wrapper,
+	#block-corporate-lite-content #ui-id-6 #edit-field-justification-travel-mode-wrapper,
+	.field--name-field-mode-of-travel,
+	.field--name-field-justification-travel-mode {
+		width: 100%;
+		float: left;
+	}
+	form .field-multiple-table .field-multiple-drag {
+		width: 0;
+		padding-right: 0;
+	}
+	#edit-field-itinerary-wrapper {
+		padding-left: 0;
+		padding-right: 0;
+	}
+	#edit-field-itinerary-wrapper table tbody tr td:nth-child(2) {
+		padding-right: 10px;
+	}
+	#edit-field-itinerary-wrapper .paragraphs-subform>div {
+		width: 100%;
+	}
+	.form-textarea-wrapper textarea {
+		height: 120px !important;
+	}
+	#edit-field-itinerary-0-subform-field-accommodation-required-wrapper {
+		margin-top: 100px;
+	}
+	/* Fixing responsive issues start */
+	.profile .field--label-inline .field__label {
+		width: 50%;
+	}
+	.form--inline .form-item,
+	#views-exposed-form-my-travel-requests-page-1 .form-item-field-travel-categories-target-id {
+		width: 100%;
+	}
+	#block-corporate-lite-content #ui-id-6 #edit-field-travel-type-wrapper,
+	#block-corporate-lite-content #ui-id-6 #edit-field-travel-way-wrapper,
+	#block-corporate-lite-content #ui-id-6 #edit-field-traveler-contact-wrapper,
+	#block-corporate-lite-content #ui-id-6 #edit-field-mode-of-travel-wrapper,
+	#block-corporate-lite-content #ui-id-6 #edit-field-justification-travel-mode-wrapper {
+		width: 100% !important;
+		padding: 0;
+	}
+	.form-composite>.fieldset-wrapper>.description,
+	.form-item .description {
+		padding: 5px;
+	}
+	#edit-field-itinerary-0-subform-field-accommodation-required-wrapper {
+		margin-top: 140px;
+	}
+	.page-node-type-travel-request .field-group-accordion-wrapper .ui-accordion-content .field--label-inline .field__label {
+		width: 50%;
+	}
+	.field span.field-check-review {
+		width: 39%;
+		float: right;
+	}
+	.content-moderation-entity-moderation-form>div {
+		padding-left: 10px;
+		padding-right: 10px;
+	}
+	.page-node-type-travel-request .field-group-format-wrapper .field--label-inline {
+		padding: 1em 0.5em !important;
+		overflow: hidden;
+	}
+	.content-moderation-entity-moderation-form>div {
+		height: auto;
+	}
+	.form-inline-field.section-all {
+		height: auto;
+	}
+	.form-inline-field.section-all {
+		height: auto !important;
+		padding-bottom: 10px;
+	}
+	.entity-moderation-form input[type="submit"] {
+		margin-bottom: 0.5em;
+	}
+	.form-inline-field.section-all .hint-second-section {
+		padding-left: 30px;
+		padding-right: 30px;
+		padding-top: 8px;
+		padding-bottom: 8px;
+	}
+	body {
+		font-size: 13px;
+	}
+	input.form-text,
+	input.form-tel,
+	input.form-email,
+	input.form-url,
+	input.form-search,
+	input.form-file,
+	input.form-number,
+	input.form-color,
+	textarea,
+	select,
+	a.button,
+	.button>a,
+	input[type="submit"],
+	input[type="reset"],
+	input[type="button"] {
+		font-size: 14px;
+	}
+	.field--name-field-date-of-reporting-to-clien input.form-time {
+		width: 100%;
+		margin-top: 10px;
+	}
+	input.form-text,
+	input.form-tel,
+	input.form-email,
+	input.form-url,
+	input.form-search,
+	input.form-file,
+	input.form-number,
+	input.form-color,
+	textarea,
+	select {
+		padding: 6px 10px 6px 10px;
+	}
+	.field span.field-check-review {
+		width: 37%;
+		float: right;
+		margin-right: 0;
+	}
+	.content-moderation-entity-moderation-form .section3 {
+		width: 36%;
+	}
+	.content-moderation-entity-moderation-form .section1 {
+		margin-right: 5px;
+	}
+	.tabs a {
+		padding: 0.2em 0.5em;
+	}
+	.node--type-travel-request .field--label-inline .field__label {
+		min-width: 50%;
+	}
+	.field--label-inline .field__label,
+	.field--label-inline>.field__item,
+	.field--label-inline .field__items {
+		padding-right: 0;
+	}
+	.field__items .itinerary-section-wrapper {
+		margin: 20px 0px;
+	}
+	/* Fixing responsive issues end */
+	/* mobile Fix start*/
+	.js .paragraph-type-top {
+		flex-wrap: wrap !important;
+	}
+	.page-node-type-travel-request .field-group-accordion-wrapper div.field {
+		overflow: auto !important;
+	}
+	.field-group-format-wrapper div.field--label-inline:nth-child(2) .field__item {
+		width: 50%;
+		float: right;
+	}
+	.field--name-field-justification-for-advance- textarea {
+		height: 80px !important;
+	}
+	ul.entity-moderation-form li {
+		width: 100%;
+	}
+	ul.entity-moderation-form {
+		margin-right: 20px;
+	}
+	.field--name-field-traveler-type select {
+		width: 100%;
+	}
+	.field--widget-entity-reference-paragraphs .tabledrag-hide {
+		display: none !important;
+		visibility: hidden;
+		visibility: collapse;
+	}
+	.tabledrag-hide {
+		display: none!important;
+		visibility: hidden;
+		visibility: collapse;
+	}
+	.field--name-field-reference-attachments.field--widget-file-generic .details-wrapper .responsive-enabled tr th {
+		padding: 12px 1px;
+	}
+	.tabledrag-handle {
+		height: 44px;
+		width: 10px;
+	}
+	.js-form-managed-file .form-managed-file { padding: 11px 0;}
+	.field--name-field-date-of-reporting-to-clien input.form-date { width: 100%!important; margin-top: 10px; }
+	#field-itinerary-values thead tr th h4.label { margin-left: -8px; }
+	.field--name-field-justification-for-advance-.field--widget-string-textarea { height: 120px !important; }
+	/* mobile Fix end*/
+}
+
+
+/* Mobile layout styles ended here */
+
+
+@media only screen and (min-width: 768px) {
+	.help-links {
+            padding-left: 7%;
+	}
+        .user-not-logged-in .user-login-form ul li {
+            display: inline;
+            padding-right: 7px;
+            font-size: 14px;
+            border-right: 1px solid #767676;
+        }
+        .user-not-logged-in .user-login-form ul li:last-child {
+            border: none;
+        }
+}
+
+.user-not-logged-in .block-system-main-block .content {
+	width: 80%;
+	margin: auto;
+}
+
+.logo-and-site-name-wrapper > .logo, .logo-and-site-name-wrapper > .site-name  {
+	float: left; 
+} 
+.logo-and-site-name-wrapper > .site-name  { 
+    margin-top: 12px;
+}
+
+.myaccount_travel_profile_details {
+    clear:both;
+}
+.logo {
+    margin-right: 0px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.20;
+    padding: 0;
+    margin: 20px 0 10px 0;
+    font-weight: 500;
+    color: #363636;
+    text-transform: capitalize;
+}
+.user-not-logged-in.path-frontpage .block-user-login-block #edit-submit {
+    color: #FFF;
+    background-color: #2EB6AE;
+    border: none;
+    border-radius: 20px;
+}
+
+input.form-text, input.form-tel, input.form-email, input.form-url, input.form-search, input.form-file, input.form-number, input.form-color, textarea, select {
+    -webkit-box-shadow: none;
+    box-shadow: none;
+    border: 1px solid #cccccc;
+    font-size: 15px;
+}
+div.header-container div.container-fluid {
+    background-color: #000;
+}
+
+.header-container ul.menu li a.is-active, .header-container ul.menu > li.active-trail > a {
+    color: #2EB6AE;
+    border-bottom: 2px solid #2EB6AE;
+}
+body .header-container ul.menu li a {
+    color: #bbb;
+}
+div.main-content section.col-md-12 #block-corporate-lite-page-title {
+    display: inline-block;
+    margin-right: 25px;
+}
+
+div#block-corporate-lite-local-tasks {
+    display: inline-block;
+}
+/** in login page hide text "You are not authorized to access this page." **/
+body.user-not-logged-in div#block-corporate-lite-local-tasks {
+    display: none;
+}
+.block-local-tasks-block {
+    padding: 0px;
+}
+.form-required:after {
+    /*content: '*';
+    background-image: none;
+    color: #2DB6AC;*/
+}
+.row .col-md-12 .block {
+    padding-bottom: 0px;
+} 
+/* Placeholder text size change */
+::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+    font-size: 14px;
+}
+::-moz-placeholder { /* Firefox 19+ */
+    font-size: 14px;
+}
+:-ms-input-placeholder { /* IE 10+ */
+    font-size: 14px;
+}
+:-moz-placeholder { /* Firefox 18- */
+    font-size: 14px;
+}
+/* end of placeholder */
+
+label {
+    font-weight: 500;
+}
+body.user-not-logged-in h2.title {
+    visibility: hidden;
+}
+
+body.user-not-logged-in div#block-corporate-lite-content div.content {
+    /*display: none;*/
+}
+h4.label, legend span.fieldset-legend, h4.form-required, h4.label.js-form-required.form-required {
+    font-weight: 600;
+}
+div.views-element-container td.views-field a, 
+.user-logged-in #main-content tbody .views-field-title a, .user-logged-in #main-content tbody .views-field-view-node a, .user-logged-in #main-content tbody .views-field-nothing-1 a {
+    color: #19968C !important;
+}
+span.editField {
+    color: #2EB6AE;
+}
+/* after login shows welcome username background color */
+.system-messages.clearfix {
+    background-color: #EBEBEB;
+}
+
+.ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button,
+#edit-field-reference-attachments-wrapper, .ui-widget {
+    font-family: 'Roboto';
+    font-size: 15px;
+}
+body.role-administrator div#navbarDefault {
+    width: 80%;
+}
+div.region-system-messages div.messages {
+    margin: 16px 0 5px;
+}
+input.button, .accordion-item{
+    outline: none;
+}
+.paragraphs-subform{
+    display: flex;
+    flex-wrap: wrap;
+}
+.field.field--name-field-date-of-reporting-to-clien.field--type-datetime.field--label-inline,
+.field.field--name-field-accommodation-required.field--type-list-string.field--label-inline {
+    margin-bottom:0 !important;
+}
+.paragraphs-dropbutton-wrapper {
+    text-align: right !important;
+}

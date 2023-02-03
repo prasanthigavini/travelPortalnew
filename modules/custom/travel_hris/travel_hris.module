@@ -1,0 +1,403 @@
+<?php
+/**
+ * @file
+ * My Travel HRIs Data Import module file.
+ */
+use Drupal\Core\Datetime\DrupalDateTime;
+
+/**
+ * Implements hook_cron, to trigger HRIS api and get employee info daily once.
+ */
+function travel_hris_cron() {
+  $request_time = time();
+  $next_execution = \Drupal::state()->get('travel_hris.next_execution', 0);
+  $next_execution = !empty($next_execution) ? (int) $next_execution : 0;
+  if ($request_time >= $next_execution || !empty($_REQUEST['hrisapi'])) {
+    $output = travel_hris_api_requests();
+    $interval = 12*60*60*7; // 7 days
+    \Drupal::logger('travel_hris')->notice('travel_hris cron ran');
+    \Drupal::state()->set('travel_hris.next_execution', $request_time + $interval);
+  }
+  //to import traveler profile data from CSV.
+  if (!empty($_REQUEST['traveler_profile_data_import'])) {
+    \Drupal::logger('travel_hris')->notice('Travel profile csv import ran');
+    get_traveler_profile_from_csv();
+  }
+}
+
+/*
+ * Import traveler profile values from CSV file (like passport number, expiry, forex card number and its expiry date)
+ */
+function get_traveler_profile_from_csv(){
+    $real_path = realpath('.') . '/' . drupal_get_path('module', 'travel_hris');
+    \Drupal::logger('travel_hris')->notice('module path: ' . $real_path);
+    echo '<br>Importing from file path: ' . $real_path . '/traveler_profile_data.csv<br>';
+    $fp = fopen($real_path . '/traveler_profile_data.csv', 'r');
+    $row = 0;
+    while (($import_row = fgetcsv($fp, 1024, ",")) !== FALSE) {
+        //skip header first row
+        if( !empty($import_row[0]) && $import_row[0] == 'email_id') {
+            echo '<hr>' . $import_row[0] . ' | ' . $import_row[1] . ' | ' . $import_row[2] . ' | ' . $import_row[3] . ' | ' . $import_row[4] . '<br><hr>';
+            continue;
+        } else if (!empty($import_row[0])) {
+            $user = user_load_by_mail($import_row[0]);
+            if ( $user === FALSE ) {
+                    echo 'email id not found : ' . $import_row[0] . '<br>';
+                    continue;
+            }
+            echo $import_row[0] . ' | ' . $import_row[1] . ' | ' . $import_row[2] . ' | ' . $import_row[3] . ' | ' . $import_row[4] . '<br>';
+            $pno = !empty($import_row[1]) ? $import_row[1] : '';
+            $user->set("field_passport_number", $pno);
+            if (!empty($import_row[2])) {
+                $pvDate = new DrupalDateTime($import_row[2]);
+                $pvalidity = format_date($pvDate->getTimestamp(), 'custom', 'Y-m-d');
+                $user->set("field_passport_validity", $pvalidity);
+            }
+            $user->set("field_forex_card_number", !empty($import_row[3]) ? $import_row[3] : '');
+            if (!empty($import_row[4])) {
+                $fExpDate = new DrupalDateTime($import_row[4]);
+                $fExpValidity = format_date($fExpDate->getTimestamp(), 'custom', 'Y-m-d');
+                $user->set("field_forex_card_expiry_date", $fExpValidity);
+            }                 
+
+            $user->save();
+            $row++;
+        }
+    }
+	echo '<hr>' . 'Total number of records updated: ' . $row;
+    \Drupal::logger('travel_hris')->notice('Total number of records updated: ' . $row);
+}
+
+/**
+ * Function to trigger HRIS api and get all employee info.
+ */
+function travel_hris_api_requests() {
+  $access_token = travel_hris_api_get_token(TRUE);
+  if (!empty($access_token)) {
+    $all_employees = travel_hris_call_request('api/TravelTool/GetAllActiveEmployees', 'GET', array(), array($access_token));
+    if (!empty($all_employees)) {
+      $emp_list_obj = json_decode($all_employees);
+      ini_set('max_execution_time', 0); //Updating maximum limit, as employees will be more than 5k.
+      foreach ($emp_list_obj as $key => $emp_data) {
+        if (!empty($emp_data->EmployeeId) && !empty($emp_data->EmailId) && (int) $emp_data->EmployeeId > 0) {
+          travel_hris_api_process_employee($emp_data);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Function to trigger HRIS api and get one employee detailed info based on EmpID.
+ */
+function travel_hris_api_process_employee($emp_data, $action = '') {
+  $access_token = travel_hris_api_get_token();
+  if (!empty($access_token) && !empty($emp_data->EmployeeId)) {
+    $body_params = "EmpID=" . $emp_data->EmployeeId;
+    $employee_info = travel_hris_call_request('api/TravelTool/EmployeeDetailsByEmployeeID', 'POST', $body_params, array($access_token,), 'json');
+    if (!empty($employee_info)) {
+      $emp_info_obj = json_decode($employee_info);
+      if (!empty($emp_info_obj)) {
+        travel_hris_check_employee_record($emp_info_obj, $emp_data, $action);
+      }
+    }
+  }
+}
+
+/**
+ * Function to create/update user record based on employee api response.
+ */
+function travel_hris_check_employee_record($emp_info_obj, $emp_data = NULL, $action = '') {
+  if (!empty($emp_info_obj) && !empty($emp_info_obj->OfficeEmailAddress)) {
+    // Creating User
+    $email = $emp_info_obj->OfficeEmailAddress;
+    $result = user_load_by_mail($email);
+
+    $emp_uid = 0;
+    if (!empty($result)) {
+      $emp_uid = $result->id();
+    }
+
+    if (!empty($emp_uid) || empty($result) || ($action == 'login' && !empty($emp_uid))) {
+      $emp_id = $emp_info_obj->EMP_CurrentID;
+      $emp_band = $emp_info_obj->Band;
+      $emp_fname = $emp_info_obj->FirstName;
+      $emp_mname = '';
+      $emp_lname = $emp_info_obj->LastName;
+      $full_name = explode(' ', $emp_info_obj->FullName);
+      $name_count = count($full_name);
+      if (!empty($full_name) && $name_count > 2) {
+        $emp_fname = !empty($emp_fname) ? $emp_fname : $full_name[0];
+        $emp_mname = !empty($emp_mname) ? $emp_mname : $full_name[1];
+        $emp_lname = !empty($emp_lname) ? $emp_lname : $full_name[$name_count-1];
+      }
+      else if (!empty($full_name) && $name_count == 2) {
+        $emp_fname = !empty($emp_fname) ? $emp_fname : $full_name[0];
+        $emp_lname = !empty($emp_lname) ? $emp_lname : $full_name[1];
+      }
+
+      $emp_gender = $emp_info_obj->Gender;
+      $emp_contact = $emp_info_obj->MobileNumber;
+      $emp_design = $emp_info_obj->Designation;
+      // Commented as we dont need to assign role 22-mar-19
+      //$emp_roles = travel_hris_user_role_check($emp_design);
+
+      $pwd = 'Travel@123';
+      $user_pm = $user_dlt = '';
+      if (!empty($emp_uid)) { // Update existing user, if employee already exists.
+        $user = \Drupal\user\Entity\User::load($emp_uid);
+        //$user->setPassword($pwd); // update to default password for LDAP login
+        $user_pm = !empty($user->field_project_manager) ? $user->field_project_manager->target_id : '';
+        $user_dlt = !empty($user->field_dlt) ? $user->field_dlt->target_id : '';
+        $user->set("field_name", $emp_fname);
+        $user->set("field_second_name", $emp_mname);
+        $user->set("field_surname", $emp_lname);
+        $user->set("field_employee_id", $emp_id);
+        $user->set("field_employee_band", $emp_band);
+        $user->set("field_contact_number", $emp_contact);
+        $user->set("field_designation", $emp_design);
+        $user->set("field_full_name", $emp_info_obj->FullName);
+        $user->set("field_base_location", $emp_info_obj->EntityLocationName);
+      }
+      else { // Create new user if employee is new.
+        $user = \Drupal\user\Entity\User::create();
+        //Mandatory settings
+        $user->setPassword($pwd);
+        $user->enforceIsNew();
+        $user->setEmail($email);
+        $user->setUsername($email);
+        $user->set("init", $email);
+        $user->set("field_name", $emp_fname);
+        $user->set("field_second_name", $emp_mname);
+        $user->set("field_surname", $emp_lname);
+        $user->set("field_gender", $emp_gender);
+        $user->set("field_employee_id", $emp_id);
+        $user->set("field_employee_band", $emp_band);
+        $user->set("field_contact_number", $emp_contact);
+        $user->set("field_designation", $emp_design);
+        $user->set("field_full_name", $emp_info_obj->FullName);
+        $user->set("field_base_location", $emp_info_obj->EntityLocationName);
+        $user->activate();
+      }
+
+      $emp_pm_email = ($emp_info_obj->ProjectManagerId == $emp_id) ? $emp_info_obj->ReportingMgrEmail : $emp_info_obj->ProjectManagerEmail;
+      $user->set("field_pm_email", $emp_pm_email);
+      $emp_dlt_email = $emp_info_obj->ClusterHeadEmail;
+      $user->set("field_cluster_head", $emp_dlt_email);
+      $dlt_uid = travel_hris_assign_roles($emp_dlt_email, 'dlt');
+      if (strtolower($emp_pm_email) != strtolower($emp_dlt_email)) {
+        $pm_uid = travel_hris_assign_roles($emp_pm_email, 'project_manager');
+      }
+      else if (!empty($emp_pm_email)) {
+        $pm_uid = $dlt_uid;
+      }
+
+      if (!empty($pm_uid)) {
+        $user->field_project_manager->target_id = $pm_uid;
+      }
+      if (!empty($dlt_uid)) {
+        $user->field_dlt->target_id = $dlt_uid;
+      }
+	  $user->addRole('employee');
+      $userData = $user->save();
+    }
+  }
+
+}
+
+/**
+ * Helper function, to update pm/dlt role on employee/team login.
+ */
+function travel_hris_assign_roles($emp_email, $emp_role) {
+  $emp_uid = 0;
+  if (!empty($emp_email) && !empty($emp_role)) {
+    $result = user_load_by_mail($emp_email);
+    if (!empty($result)) {
+      $emp_uid = $result->id();
+      if (!empty($emp_uid)) {
+        $user = \Drupal\user\Entity\User::load($emp_uid);
+        $roles = $result->getRoles();
+        if ($emp_role == 'dlt') {
+          $user->addRole($emp_role);
+        }
+        else if ($emp_role == 'project_manager') {
+          $user->addRole($emp_role);
+        }
+        $user->save();
+      }
+    }
+  }
+  return $emp_uid;
+}
+
+/**
+ * Implements hook_user_login, to update pm/dlt/user-info from HRIS api at every login.
+ */
+function travel_hris_user_login($account) {
+  $current_user = \Drupal::currentUser();
+  $emp_uid = $current_user->id();
+  if ($emp_uid) {
+    $current_user = \Drupal\user\Entity\User::load($emp_uid);
+
+    $employee_id = !empty($current_user->field_employee_id->value) ? $current_user->field_employee_id->value : 0;
+    $name = $current_user->get('name')->value;
+    $fullname = $current_user->field_full_name->value;//$current_user->getUsername();
+    $welcome_message = t('Welcome '. $fullname);
+    drupal_set_message($welcome_message,'success welcome_msg');
+
+    if (!empty($employee_id)) {
+      $emp_data = new stdClass();
+      $emp_data->EmployeeId = $employee_id;
+      travel_hris_api_process_employee($emp_data, 'login');
+
+      /* $existing_pwd = $current_user->getPassword();
+      $pwd = 'Travel@123';
+      $password_hasher = \Drupal::service('password');
+      $hashed_password = $password_hasher->hash($pwd);
+
+      if (empty($current_user->getLastLoginTime()) || empty($current_user->getLastAccessedTime()) || $hashed_password == $existing_pwd) {
+        global $base_url;
+        $redirect_path = $base_url . '/user/' . $emp_uid . '/edit';
+        $message = t('Please update your password at <a href="@link">My Account</a> page', array('@link' => $redirect_path));
+        //commented below line as we are displaying message through force password module.
+        //drupal_set_message($message, 'warning', FALSE);
+
+        $route_name = \Drupal::routeMatch()->getRouteName();
+        if ($route_name != 'user.reset.login') {
+          $response = new Symfony\Component\HttpFoundation\RedirectResponse($redirect_path);
+          //$response->send();
+        }
+      } */
+    }
+  }
+}
+
+/**
+ * Helper function to check designation of employee and assign respective roles to created employee users.
+ */
+function travel_hris_user_role_check($designation = '') {
+  $user_roles = array('employee');
+  $designation = strtolower($designation);
+  if (strpos($designation, 'project manager') !== FALSE || strpos($designation, 'director') !== FALSE) {
+    $user_roles[] = 'project_manager';
+  }
+  $dlt_des = array('vp', 'dlt', 'vp - global delivery', 'vp - delivery', 'cluster head', 'vp - sales', );
+  if (in_array($designation, $dlt_des)) {
+    $user_roles[] = 'dlt';
+  }
+//Commented below role assigning as slt/finance role assigning is not required at this point(19-mar-2019)
+//  if (strpos($designation, 'slt') !== FALSE || strpos($designation, 'vp - sales') !== FALSE) {
+//    $user_roles[] = 'slt';
+//  }
+//  if (strpos($designation, 'finance') !== FALSE) {
+//    $user_roles[] = 'finance';
+//  }
+  if (strpos($designation, 'forex') !== FALSE) {
+    $user_roles[] = 'forex';
+  }
+
+  return $user_roles;
+}
+
+/**
+ * Helper function to get HRIS API authorization token with Bearer type, for every service request.
+ */
+function travel_hris_api_get_token($new_flag = FALSE) {
+  $token_access = '';
+  $current_time = time();
+  $token_data = \Drupal::state()->get('travel_hris.access_token_info', NULL);
+  $body_params = travel_hris_get_body_parameters('token');
+  if ($new_flag || empty($token_data) || (!empty($body_params['Username']) && !empty($token_data->TravelPortal) && $token_data->TravelPortal != $body_params['Username']) || (!empty($token_data->access_token) && !empty($token_data->requested_time) && ((int) $token_data->requested_time + (int) $token_data->expires_in - 20) <= $current_time)) {
+    $body_params = travel_hris_get_body_parameters('token');
+    $token_info = travel_hris_call_request('token', 'POST', $body_params);
+    if (!empty($token_info)) {
+      $token_data = json_decode($token_info);
+      if (!empty($token_data->access_token)) {
+        $token_data->requested_time = $current_time;
+        \Drupal::state()->set('travel_hris.access_token_info', $token_data);
+      }
+    }
+  }
+  if (!empty($token_data->access_token)) {
+    $token_access = 'authorization: ' . $token_data->token_type . ' ' . $token_data->access_token;
+  }
+  return $token_access;
+}
+
+/**
+ * Helper function to get HRIS API Host name, based on configurations.
+ */
+function travel_hris_get_api_host() {
+  $config = \Drupal::config('travel_hris.settings');
+  $api_host = $config->get('api_host');
+  if (empty($api_host)) {
+    $api_host = 'http://10.10.52.194:2054/';
+  }
+  return $api_host;
+}
+
+/**
+ * Helper function to get HRIS service credentials to get API token.
+ */
+function travel_hris_get_body_parameters($request = 'token') {
+  $config = \Drupal::config('travel_hris.settings');
+  $api_uname = $config->get('api_username');
+  $api_pwd = $config->get('api_password');
+  $grant_type = $config->get('grant_type');
+
+  $body_params = array(
+    "Username" => !empty($api_uname) ? $api_uname : "myfusion12",
+    "Password" => !empty($api_pwd) ?  $api_pwd : "Myfusion*12",
+    "grant_type" => !empty($grant_type) ? $grant_type : "password",
+  );
+  return $body_params;
+}
+
+/**
+ * Common function to call API service using curl requests and pass respective header/params and return response.
+ */
+function travel_hris_call_request($requesturl, $method, $params = array(), $auth_headers = array(), $format = '') {
+  $api_host = travel_hris_get_api_host();
+  $url = $api_host . $requesturl;
+  try {
+    $ch = curl_init(); // initialized curl
+    // set header for curl request
+    $headers = array(
+      "Cache-Control: no-cache",
+      "Pragma: no-cache",
+    );
+    if (empty($format)) {
+      $headers[] = "Content-Type: application/x-www-form-urlencoded";
+    }
+    if (!empty($auth_headers) && is_array($auth_headers)) {
+      $headers = array_merge($headers, $auth_headers);
+    }
+
+    // set required setting with curl configuration
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_FRESH_CONNECT, TRUE);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    curl_setopt($ch, CURLOPT_FORBID_REUSE, 1);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+
+    // pass the additional values
+    if ($format == 'json') {
+      curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+      curl_setopt($ch, CURLOPT_POST, 1);
+    }
+    else {
+      curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($params));
+    }
+
+    // close the curl connection
+    $result = curl_exec($ch);
+    curl_close($ch);
+
+    return $result;
+  }
+  catch (Exception $e) {
+    echo $e->getMessage();
+  }
+}

@@ -1,0 +1,6 @@
+{% set country_info =  content.field_to_country|render %}
+<div class="container-inline"><div class="city">{{ content.field_to_city.0 }}</div>
+{% if country_info %}
+<div class="country-info-container"><div class='country-bracket'>(</div><div class='country'>{{ content.field_to_country.0 }}</div><div class='country-bracket'>)</div></div>
+{% endif %}
+</div>

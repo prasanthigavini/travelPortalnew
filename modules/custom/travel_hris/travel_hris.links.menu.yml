@@ -1,0 +1,7 @@
+travel_hris_config.settings_form:
+  title: 'HRIS Settings Form'
+  route_name: travel_hris_config.hris_settings_form
+  description: 'HRIS Setting Menu'
+  parent: system.admin_config_system
+  weight: 99
+

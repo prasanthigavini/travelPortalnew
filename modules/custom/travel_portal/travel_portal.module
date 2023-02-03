@@ -1,0 +1,2148 @@
+<?php
+
+use Drupal\Core\Mail\MailManagerInterface;
+use Drupal\Component\Utility\SafeMarkup;
+use Drupal\Component\Utility\Html;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Datetime\DrupalDateTime;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Drupal\views\ViewExecutable;
+use Drupal\views\Plugin\views\query\QueryPluginBase;
+use Drupal\paragraphs\Entity\Paragraph;
+use Drupal\file\Entity\File;
+use Drupal\Core\Messenger\MessengerInterface;
+use Drupal\Core\Access\AccessResult;
+
+/**
+ * Implements hook_mail().
+ */
+function travel_portal_mail($key, &$message, $params) {
+    $options = array(
+        'langcode' => $message['langcode'],
+    );
+    $email_config = \Drupal::config('travel_emails_config.settings');
+    switch ($key) {
+        case 'travel_request_insert_alert':
+            $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+            if (!empty($email_config->get('cc_emails'))) {
+                $message['headers']['Cc'] = $email_config->get('cc_emails');
+            }
+            $message['from'] = \Drupal::config('system.site')->get('mail');
+            $data = _travel_request_node_value($params['message']);
+            // Update from email address when dlt creating request for self
+            if ($params['requester'] == 'dlt') {
+                $message['from'] = $data['email'];
+                $message['headers']['Sender'] = $data['email'];
+                $message['headers']['From'] = $data['requestername'] . ' <' . $data['email'] . '>';
+            }
+            $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' created by ' . $data['requester_name'];
+            $body_data = array(
+                '#theme' => 'mail_to_approve',
+                '#submitted_data' => $data
+            );
+            $message['body'][] = \Drupal::service('renderer')->render($body_data);
+            $message['params']['attachments'][] = $params['attachments'];
+            break;
+        case 'travel_request_update_alert':
+            $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+            if (!empty($email_config->get('cc_emails'))) {
+                $message['headers']['Cc'] = $email_config->get('cc_emails');
+            }
+            $message['from'] = \Drupal::config('system.site')->get('mail');
+            $data = _travel_request_node_value($params['message']);
+            $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' modified by ' . $data['requester_name'];
+            $body_data = array(
+                '#theme' => 'mail_to_approve',
+                '#submitted_data' => $data
+            );
+            $message['body'][] = \Drupal::service('renderer')->render($body_data);
+            $message['params']['attachments'][] = $params['attachments'];
+            break;
+        case 'state_updated':
+            $data = _travel_request_node_value($params['travel_values']);
+            $current_user = \Drupal::currentUser();
+            $roles = $current_user->getRoles();
+
+            $message['headers']['Content-Type'] = 'text/html; charset=UTF-8; format=flowed; delsp=yes';
+            if (!empty($email_config->get('cc_emails'))) {
+                $message['headers']['Cc'] = $email_config->get('cc_emails');
+            }
+            $message['from'] = \Drupal::config('system.site')->get('mail');
+            if ($data['moderation_state'] == 'pm_approved') { // PM approved
+                $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' approved by ' . $data['manager_name'];
+                if (in_array('administrator', $roles)) { // if request is approve by admin
+                    $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' approved by Travel Team on behalf of ' . $data['manager_name'];
+                }
+            } elseif ($data['moderation_state'] == 'rejected') { //PM rejected
+                $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' rejected by ' . $data['manager_name'];
+                if (in_array('administrator', $roles)) { // if request is rejected by admin
+                    $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' rejected by Travel Team on behalf of ' . $data['manager_name'];
+                }
+            } elseif ($data['moderation_state'] == 'closed') { // DLT/SLT approved
+                $message['from'] = $data['email'];
+                $message['headers']['Sender'] = $data['email'];
+                $message['headers']['From'] = $data['requestername'] . ' <' . $data['email'] . '>';
+                $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' approved for traveler ' . $data['requester_name'];
+                if (in_array('administrator', $roles)) { // if request is approve by admin
+                    $message['subject'] = t('Admin approved Travel request ') . ' - ' . $data['travel_id'] . ' for traveler ' . $data['requester_name'];
+                }
+            } elseif ($data['moderation_state'] == 'dlt_rejected') { // DLT/SLT rejected
+                $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' rejected for traveler ' . $data['requester_name'];
+                if (in_array('administrator', $roles)) { // if request is rejected by admin
+                    $message['subject'] = t('Admin rejected Travel request ') . ' - ' . $data['travel_id'] . ' for traveler ' . $data['requester_name'];
+                }
+            } elseif ($data['moderation_state'] == 'published') {
+                $message['from'] = $data['email'];
+                $message['headers']['Sender'] = $data['email'];
+                $message['headers']['From'] = $data['requestername'] . ' <' . $data['email'] . '>';
+                $message['subject'] = t('Travel request ') . ' - ' . $data['travel_id'] . ' is closed';
+            }
+            $body_data = array(
+                '#theme' => 'mail_to_approve',
+                '#submitted_data' => $data
+            );
+            $message['body'][] = \Drupal::service('renderer')->render($body_data);
+            if (!empty($params['attachments'])) {
+                $message['params']['attachments'][] = $params['attachments'];
+            }
+            break;
+    }
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function travel_portal_entity_insert(Drupal\Core\Entity\EntityInterface $entity) {
+    switch ($entity->bundle()) {
+        case 'travel_request':
+            $state = 'insert';
+            send_emails_on_create_or_update_request($entity, $state);
+            break;
+    }
+}
+
+function travel_portal_entity_update(Drupal\Core\Entity\EntityInterface $entity) {
+    switch ($entity->bundle()) {
+        case 'travel_request':
+            $state = 'update';
+            $request_id = $entity->id();
+            $request = \Drupal\node\Entity\Node::load($request_id);
+            $isEntityNew = $request->get('field_isnew')->getValue()[0]['value'];
+            $current_user_id = \Drupal::currentUser()->id();
+            $owner_id = $entity->getOwnerId();
+            $current_user = \Drupal::currentUser();
+            $roles = $current_user->getRoles();
+            $mail_flag = false;
+            $moderation_state = $request->get('moderation_state')->getValue()[0]['value'];
+            //Edit permission for Traveldesk
+            if ($isEntityNew == "existingNode" && in_array('travel_desk_administrator', $roles)) { // && $moderation_state != 'closed'
+                $mail_flag = true;
+                send_emails_on_create_or_update_request($entity, $state);
+            }
+            // Send edit request email only when node is pending for approval
+            if ($isEntityNew != "isnew" && $current_user_id == $owner_id && $moderation_state == 'draft') {
+                $mail_flag = true;
+                send_emails_on_create_or_update_request($entity, $state);
+            }
+            //When a request state is updated from super admin login, send emails on behalf of PM/DLT/Travel Team
+            $request_action_states = array('pm_approved', 'rejected', 'dlt_rejected', 'closed', 'published');
+            if ($mail_flag === false && in_array('administrator', $roles) && in_array($moderation_state, $request_action_states)) {
+                if (strpos($_SERVER['REQUEST_URI'], '/revisions/') === false) { // do not trigger mail for revision update by admin
+                    send_emails_on_create_or_update_request($entity, $state);
+                }
+            }
+            break;
+    }
+}
+
+function send_emails_on_create_or_update_request($entity, $state) {
+    $user = \Drupal::currentUser()->id();
+    if ($user) {
+        $config = \Drupal::config('travel_emails_config.settings');
+        $configTravelEmails = $config->get('travel_emails');
+
+        if ($entity->getEntityTypeId() !== 'node' || ($entity->getEntityTypeId() === 'node' && $entity->bundle() !== 'travel_request')) {
+            return;
+        }
+
+        $request_id = $entity->id();
+        $request = \Drupal\node\Entity\Node::load($request_id);
+
+        $mod_state = $request->get('moderation_state')->getValue()[0]['value'];
+        $current_user = \Drupal::currentUser();
+        $roles = $current_user->getRoles();
+        $request_action_states = array('pm_approved', 'rejected', 'dlt_rejected', 'closed', 'published');
+
+        if ($state == "update") {
+            $mail_key = 'travel_request_update_alert';
+            $status_message = t('Request updated with ID ');
+
+            if (in_array('administrator', $roles) &&  in_array($mod_state, $request_action_states)) {
+                $mail_key = 'state_updated';
+            }
+        } else if ($state == "insert") {
+            $mail_key = 'travel_request_insert_alert';
+            $status_message = t('Request created with ID ');
+        }
+
+        // Get traveler information
+        $traveller = $request->field_travelers_information->referencedEntities();
+        $travelers = array();
+        foreach ($traveller as $key => $travellers) {
+            $travelers[$key]['traveler_type'] = $travellers->field_traveler_type->value;
+            $travelers[$key]['traveler_empid'] = $travellers->field_traveler_employee_id->value;
+        }
+        // check whether others is selected
+        $keys = array_keys(array_column($travelers, 'traveler_type'), 'Others');
+        $key = array_search('Others', array_column($travelers, 'traveler_type'));
+        $found = count($keys);
+        $otherEmailId = '';  $toEmails = '';
+        $otherEmployee_roles = array();
+        $other_traveler = travel_portal_check_other_traveler($traveller);
+        if (!empty($keys) && $found == 1) { // && $other_traveler
+            // Get emailId or other traveller
+            $emp_id = $travelers[$key]['traveler_empid'];
+            $query = \Drupal::entityQuery('user');
+            $userid = $query->condition('field_employee_id', $emp_id, '=')
+                ->execute();
+            if (!empty($userid)) {
+                $otherUserid = end(array_keys($userid));
+                $othersEmailid = \Drupal\user\Entity\User::load($otherUserid);
+                if (!empty($othersEmailid)) {
+                    $otherEmailId = $othersEmailid->get('mail')->value;
+                    $otherEmployee_roles = $othersEmailid->getRoles();
+                }
+            }
+        }
+        //Get author from reference filed Other traveler UID
+        if ($other_traveler) {
+            $autherId = $request->get('field_other_traveler_uid')->target_id;
+        } else {
+            $autherId = $request->getOwnerId();
+        }
+        $user = \Drupal\user\Entity\User::load($autherId);
+        $authorEmail = $user->get('mail')->value;
+
+        if ($other_traveler) {
+            $traverlerAutherId = $request->get('field_other_traveler_uid')->target_id;
+            $travelerUser = \Drupal\user\Entity\User::load($traverlerAutherId);
+            $pmId = $travelerUser->get('field_project_manager')->target_id;
+            $pmData = \Drupal\user\Entity\User::load($pmId);
+            $pmEmail = '';
+            if (!empty($pmData)) {
+                $pmEmail = $pmData->get('mail')->value;
+            }
+            $dltId = $travelerUser->get('field_dlt')->target_id;
+            $dltData = \Drupal\user\Entity\User::load($dltId);
+            $dtltEmail = '';
+            if (!empty($dltData)) {
+                $dtltEmail = $dltData->get('mail')->value;
+            }
+        } else {
+            $pmId = $user->get('field_project_manager')->target_id;
+            $pmData = \Drupal\user\Entity\User::load($pmId);
+            $pmEmail = '';
+            if (!empty($pmData)) {
+                $pmEmail = $pmData->get('mail')->value;
+            }
+            $dltId = $user->get('field_dlt')->target_id;
+            $dltData = \Drupal\user\Entity\User::load($dltId);
+            $dtltEmail = '';
+            if (!empty($dltData)) {
+                $dtltEmail = $dltData->get('mail')->value;
+            }
+        }
+
+        $travel_id = $request->get('field_travel_id')->getValue()[0]['value'];
+        $mailManager = \Drupal::service('plugin.manager.mail');
+        $module = 'travel_portal';
+        $mod_state = $request->get('moderation_state')->getValue()[0]['value'];
+        if (in_array('project_manager', $roles) || in_array('project_manager', $otherEmployee_roles) || in_array('dlt', $roles) || in_array('dlt', $otherEmployee_roles) || in_array('travel_desk_administrator', $roles) || in_array('administrator', $roles)) {
+            if ($mod_state == 'rejected') {
+                $toEmails = $authorEmail . ',' . $pmEmail;
+            } else if ($mod_state == 'pm_approved') {
+                $toEmails = $authorEmail . ',' . $dtltEmail . ',' . $pmEmail;
+            } else if ($mod_state == 'dlt_rejected') {
+                $toEmails = $authorEmail . ',' . $dtltEmail . ',' . $pmEmail;
+            } else if ($mod_state == 'closed') {
+                // Add parameter for request creator
+                $params['requester'] = 'dlt';
+                $configAcoomodationEmails = $config->get('accomodation_emails');
+                $international_emails = $config->get('international_emails');
+                // Attach csv file to email params
+                $fieldNames = _save_emailExcel($request);
+                $file_name = 'travel-' . $request->get('field_travel_id')->getValue()[0]['value'] . '.xlsx';
+                // Sending node file attachments and xlsx file
+                $file_uris = array();
+                foreach ($request->field_reference_attachments as $key => $value) {
+                    if ($value->entity) {
+                        $file_uris[$key]['filepath'] = $value->entity->getFileUri();
+                        $file_uris[$key]['filename'] = $value->entity->getFilename();
+                        $file_uris[$key]['filemime'] = $value->entity->getMimeType();
+                    }
+                }
+                $request_details[] = array(
+                    'filepath' => 'sites/default/files/travelattachments/' . $file_name,
+                    'filename' => $file_name,
+                    'filemime' => 'application/xlsx',
+                );
+                $file_uris = array_merge($file_uris, $request_details);
+                $attachment = $file_uris;
+                $toEmails = $authorEmail . ',' . $dtltEmail . ',' . $pmEmail . ',' . $configTravelEmails;
+                $itinerary_data = $request->field_itinerary->referencedEntities();
+                $isAccommodationRequired = 0;
+                foreach ($itinerary_data as $key => $itinerary_value) {
+                    if ($itinerary_value->field_accommodation_required->value == "Yes") {
+                        $isAccommodationRequired = 1;
+                    }
+                }
+                if ($isAccommodationRequired == 1) {
+                    $toEmails.= "," . $configAcoomodationEmails;
+                }
+
+                $travel_way = $request->get('field_travel_type')->getValue()[0]['value'];
+
+                if ($travel_way === "International") {
+                    $toEmails.= "," . $international_emails;
+                }
+            } else if ($mod_state == 'published') {
+                $fieldNames = _save_emailExcel($request);
+                $file_name = 'travel-' . $request->get('field_travel_id')->getValue()[0]['value'] . '.xlsx';
+                // Sending node file attachments and xlsx file
+                $file_uris = array();
+                foreach ($request->field_reference_attachments as $key => $value) {
+                    if ($value->entity) {
+                        $file_uris[$key]['filepath'] = $value->entity->getFileUri();
+                        $file_uris[$key]['filename'] = $value->entity->getFilename();
+                        $file_uris[$key]['filemime'] = $value->entity->getMimeType();
+                    }
+                }
+                $request_details[] = array(
+                    'filepath' => 'sites/default/files/travelattachments/' . $file_name,
+                    'filename' => $file_name,
+                    'filemime' => 'application/xlsx',
+                );
+                $file_uris = array_merge($file_uris, $request_details);
+                $attachment = $file_uris;
+                $toEmails = $authorEmail . ',' . $configTravelEmails;
+            }
+        } else {
+            $toEmails.= $authorEmail . ',' . $pmEmail;
+        }
+        
+        if (empty($toEmails)) {
+          $toEmails = $authorEmail . ',' . $pmEmail;
+        }
+        if (!empty($otherEmailId)) {
+            $toEmails.= "," . $otherEmailId;
+        }
+
+        $params['message'] = $request;
+        $params['travel_values'] = $request; // setting this param as its required by mail hook to send state change mail by admin.
+        $langcode = \Drupal::currentUser()->getPreferredLangcode();
+        $send = true;
+        if (!empty($attachment)) {
+            $params['attachments'] = $attachment;
+        }
+        $to = $toEmails;
+        $to = implode(',', array_unique(explode(',', $to)));   // removing duplicate emails if any
+        $toemails = $config->get('emails');
+        if ($config->get('email_settings') == 'prod') {
+            $toemails = $to;
+        }
+
+        $result = $mailManager->mail($module, $mail_key, $toemails, $langcode, $params, NULL, $send);
+        $to = rtrim($to, ', ');
+        $to = str_replace(",", ", ", $to);
+        $to = str_replace(", ,", ", ", $to);
+        \Drupal::messenger()->deleteByType(MessengerInterface::TYPE_WARNING); //clear warning messages
+        if ($result['result'] === false) {
+            $message = t('There was a problem sending your email notification to @email', array('@email' => $to));
+            drupal_set_message($message, 'error');
+            \Drupal::logger('mail-log')->error($message);
+            return;
+        }
+        $status_msg = $status_message . $travel_id;
+        drupal_set_message($status_msg);
+        $message = t('An email notification has been sent to @email ', array('@email' => $to));
+        drupal_set_message($message);
+        \Drupal::logger('mail-log')->notice($message);
+        if (($current_user->id() == $autherId) && (in_array('dlt', $roles)) && ($request->get('moderation_state')->getValue()[0]['value'] == 'draft')) {
+            global $base_url;
+            $redirect_path = $base_url . '/my-travel-requests';
+            $response = new RedirectResponse($redirect_path);
+            $response->send();
+        }
+    }
+}
+
+function travel_portal_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id) {
+    global $base_url;
+    $form['#attached']['drupalSettings']['base_url'] = $base_url;
+    $current_user = \Drupal::currentUser();
+    $roles = $current_user->getRoles();
+    $form['#attached']['drupalSettings']['roles'] = $roles;
+    
+    if (in_array('travel_desk_administrator', $roles)) {
+        $form['#attached']['drupalSettings']['travel_desk_administrator'] = 'true';
+    } else {
+        $form['#attached']['drupalSettings']['travel_desk_administrator'] = 'false';
+    }
+    if ($form_id == 'user_login_form') {
+        $form['name']['#attributes'] = array(
+            'placeholder' => array(t('Windows Username')));
+        $form['pass']['#attributes'] = array(
+            'placeholder' => array(t('Windows Password')));
+    }
+    if ($form_id == 'user_form' && !in_array("administrator", $roles)) {
+        $form['account']['mail']['#attributes']['readonly'] = 'readonly';
+        $form['account']['mail']['#disabled'] = TRUE;
+        $form['field_employee_id']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        $form['field_employee_band']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        $form['field_designation']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        $form['field_project_manager']['widget'][0]['target_id']['#attributes']['readonly'] = 'readonly';
+        $form['field_dlt']['widget'][0]['target_id']['#attributes']['readonly'] = 'readonly';
+        $form['field_name']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        $form['field_second_name']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        $form['field_surname']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        $form['field_gender']['#disabled'] = TRUE;
+        $form['field_contact_number']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        $form['user_picture']['#disabled'] = TRUE;
+        $form['edit-password']['#access'] = TRUE;
+        $form['account']['pass']['#access'] = FALSE;
+        $form['account']['current_pass']['#access'] = FALSE;
+        $form['account']['mail']['#access'] = FALSE;
+
+    }
+    if ($form_id == 'node_travel_request_form') {
+        if (in_array('project_manager', $roles) || in_array('dlt', $roles) || in_array('slt', $roles)) {
+            $form['field_travel_categories']['widget']['#required'] = TRUE;
+            $form['field_travel_sub_category']['widget']['#required'] = TRUE;
+        }
+        $form['actions']['submit']['#value'] = t('Submit');
+        if (!empty($form['field_employee_email']['widget'][0]['value'])) {
+            $form['field_employee_email']['widget'][0]['value']['#default_value'] = $current_user->getEmail();
+            $form['field_employee_email']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        }
+        if (!empty($form['field_employee_id']['widget'][0]['value']['#default_value'])) {
+            $form['field_employee_id']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        }
+        if (!empty($form['field_employee_name']['widget'][0]['value']['#default_value'])) {
+            $form['field_employee_name']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        }
+        $form['field_employee_middle_name']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        if (!empty($form['field_employee_last_name']['widget'][0]['value']['#default_value'])) {
+            $form['field_employee_last_name']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        }
+        if (!empty($form['field_travel_id']['widget'][0]['value']['#attributes'])) {
+            $form['field_travel_id']['widget'][0]['value']['#attributes']['readonly'] = 'readonly';
+        }
+        if (!empty($form['field_requested_date']['widget'][0]['value'])) {
+            $form['field_requested_date']['widget'][0]['value']['#disabled'] = TRUE;
+        }
+
+        $user_info = \Drupal::entityTypeManager()->getStorage('user')->load($current_user->id());
+        $login_user_info = getTravelerProfileInfo($user_info);
+		
+        $employee_band = preg_replace("/[^a-zA-Z]+/", "", $login_user_info['band']);
+        $emp_band = strtolower($employee_band[0]);
+
+        $form['#attached']['drupalSettings']['emp_band'] = $emp_band;
+        $form['field_justification_travel_mode']['#states'] = array(
+            'visible' => array(
+                ':input[name="field_travel_type"]' => array('value' => 'Domestic'),
+            ),
+        );
+        if (preg_match("/a/", strtolower($employee_band[0])) || preg_match("/b/", strtolower($employee_band[0]))) {
+            $form['field_mode_of_travel']['widget']['#default_value'] = 'Train';
+        } else if (strtolower($employee_band[0]) >= 'c') {
+            $form['field_mode_of_travel']['widget']['#default_value'] = 'Flight';
+        }
+        $form['#attached']['drupalSettings']['travel_portal']['login_user'] = $login_user_info;
+        $form['#validate'][] = '_travel_portal_request_form_validate';
+    }
+
+    if ($form_id == 'node_travel_request_edit_form') {
+        $form['field_isnew']['widget']['#default_value'] = array("existingNode");
+        if (!empty($form['field_requested_date']['widget'][0]['value'])) {
+            $form['field_requested_date']['widget'][0]['value']['#disabled'] = TRUE;
+        }
+        $node = \Drupal::routeMatch()->getParameter('node');
+        $nid = $node->id();
+        $nodeData = \Drupal\node\Entity\Node::load($nid);
+        $autherId = $nodeData->getOwnerId();
+        if (in_array('employee', $roles)) {
+            //$form['moderation_state']['#access'] = FALSE;
+            $form['field_employee_email']['widget'][0]['value']['#disabled'] = TRUE;
+            $form['field_employee_id']['widget'][0]['value']['#disabled'] = TRUE;
+            $form['field_employee_name']['widget'][0]['value']['#disabled'] = TRUE;
+            $form['field_employee_middle_name']['widget'][0]['value']['#disabled'] = TRUE;
+            $form['field_employee_last_name']['widget'][0]['value']['#disabled'] = TRUE;
+            $form['field_travel_id']['widget'][0]['value']['#disabled'] = TRUE;
+            $form['field_requested_date']['widget'][0]['value']['#disabled'] = TRUE;
+        }
+        if (in_array('project_manager', $roles) || in_array('dlt', $roles) || in_array('slt', $roles)) {
+            if ($autherId != $current_user->id()) {
+                foreach ($form['#fieldgroups']['group_employee_section']->children as $form_element_id) {
+                    $form[$form_element_id]['#access'] = FALSE;
+                }
+                foreach ($form['#fieldgroups']['group_travelers']->children as $form_element_id) {
+                    $form[$form_element_id]['#access'] = FALSE;
+                }
+                foreach ($form['#fieldgroups']['project_details']->children as $form_element_id) {
+                    $form[$form_element_id]['#access'] = FALSE;
+                }
+                $form['#fieldgroups']['group_travel_details']->format_settings['formatter'] = True;
+                $form['title']['#access'] = FALSE;
+                $form['field_client_name']['#access'] = FALSE;
+                $form['field_project_details']['#access'] = FALSE;
+                $form['field_sfid_sales_travel']['#access'] = FALSE;
+                $form['field_reference_attachments']['#access'] = FALSE;
+                $form['field_accomodation_required']['#access'] = FALSE;
+            }
+        }
+        if (in_array('travel_desk_administrator', $roles)) {
+            $form['moderation_state']['#access'] = FALSE;
+        }
+        $user_info = \Drupal::entityTypeManager()->getStorage('user')->load($current_user->id());
+        $login_user_info = array();
+        $login_user_info['band'] = !empty($user_info->field_employee_band) ? $user_info->field_employee_band->value : '';
+        $employee_band = preg_replace("/[^a-zA-Z]+/", "", $login_user_info['band']);
+        $emp_band = strtolower($employee_band[0]);
+        $form['#attached']['drupalSettings']['emp_band'] = $emp_band;
+		
+        //it should get requester info.
+        $author_info = \Drupal::entityTypeManager()->getStorage('user')->load($autherId);
+        $login_user_info = getTravelerProfileInfo($author_info);
+        $form['#attached']['drupalSettings']['travel_portal']['login_user'] = $login_user_info;
+		
+        $form['field_justification_travel_mode']['#states'] = array(
+            'visible' => array(
+                ':input[name="field_travel_type"]' => array('value' => 'Domestic'),
+            ),
+        );
+    }
+
+    if ($form_id == 'content_moderation_entity_moderation_form') {
+        $form['submit']['#value'] = t("Submit");
+        $node = \Drupal::routeMatch()->getParameter('node');
+        $current_path = \Drupal::request()->query->get('from');
+        $form['#attached']['drupalSettings']['current_path'] = $current_path;
+
+        if ($node instanceof \Drupal\node\NodeInterface) {
+            // You can get nid and anything else you need from the node object.
+            $nid = $node->id();
+            $nodeData = \Drupal\node\Entity\Node::load($nid);
+            if (!empty($nodeData->get('field_other_traveler_uid')->target_id)) {
+                $other_travel_uid = $nodeData->get('field_other_traveler_uid')->target_id;
+                $account = \Drupal\user\Entity\User::load($other_travel_uid);
+            } else {
+                $account = \Drupal\user\Entity\User::load($nodeData->getOwnerId());
+            }
+            $projectManagerId = $account->get('field_project_manager')->target_id;
+            $dltId = $account->get('field_dlt')->target_id;
+            $moderation_state = $nodeData->get('moderation_state')->getValue()[0]['value'];
+            $form['#attached']['drupalSettings']['moderation_state'] = $moderation_state;
+
+            if ($projectManagerId != '' || $dltId != '') {
+                if ($current_user && ($current_user->id() != $projectManagerId && $current_user->id() != $dltId)) {
+                    if (!in_array('travel_desk_administrator', $roles)) {
+                        $form["#access"] = FALSE;
+                    }
+                }
+            }
+            //To hide the moderation form for Approved/Rejected records when DLT loged in 
+            if (($moderation_state == "dlt_rejected" || $moderation_state == "closed" || $moderation_state == "rejected") && in_array('dlt', $roles) || in_array('slt', $roles)) {
+                $form["#access"] = FALSE;
+            }
+            //To hide the moderation form for pm_approved/Rejected records when pm loged in 
+            if (($moderation_state == "rejected" || $moderation_state == "pm_approved") && in_array('project_manager', $roles)) {
+                if (!in_array('dlt', $roles) && !in_array('slt', $roles)) { // if user has dlt/slt role along with project manager then allow the moderation form
+                    $form["#access"] = FALSE;
+                }
+            }
+            if (in_array('dlt', $roles) || in_array('slt', $roles)) {
+                if ($nodeData->get('field_travel_categories')->target_id == NULL || $nodeData->get('field_travel_sub_category')->target_id == NULL) {
+                    drupal_set_message(t('Travel Categories and sub-categories are required.'), 'warning', FALSE);
+                }
+            }
+
+            $autherId = $nodeData->getOwnerId();
+            //if ($autherId != $current_user->id()){
+            $travel_cat = $nodeData->get('field_travel_categories')->target_id;
+            $travel_sub_cat = $nodeData->get('field_travel_sub_category')->target_id;
+            $travel_way = $nodeData->get('field_travel_way')->getValue();
+            $project_name = $nodeData->get('field_project_name')->getValue();
+            $client_name = $nodeData->get('field_client_name')->getValue();
+            $clientName = !empty($client_name[0]['value']) ? $client_name[0]['value'] : '- None -';
+            $form['pname_markup'] = array(
+                '#markup' => '<div class="field custom-field field-project-name field--label-inline">
+				<div class="form-required font-weight-bold section1">Project Name</div>
+				<div class="field__item section2">' . $project_name[0]['value'] . '</div>
+				',
+                '#prefix' => '<div class="form-inline-field section-all"><div class="hint-title title-background">Approve Details </div><div class="hint-second-section"><div class="title-section-1"><div class="hint-text">Please verify the details below, edit if required and click on respective checkbox(es) to confirm before Approval</div></div><div class="title-section-2"><div class="btn check-all-confirm" data-type="check">Select All</div></div></div></div>',
+                '#allowed_tags' => ['div',],
+            );
+            $form['project_name'] = array(
+                '#type' => 'textfield',
+                '#required' => TRUE,
+                '#default_value' => !empty($project_name[0]['value']) ? $project_name[0]['value'] : '',
+                '#size' => 60,
+                '#attributes' => array('class' => array('custmform')),
+                '#prefix' => '<div class="form-inline-field section3">',
+                '#suffix' => '</div></div>',
+                '#allowed_tags' => ['div',],
+            );
+            $form['cname_markup'] = array(
+                '#markup' => '<div class="field custom-field field-client-name field--label-inline">
+				<div class="font-weight-bold section1">Client Name</div>
+				<div class="field__item section2">' . $clientName . '</div>
+				',
+                '#allowed_tags' => ['div',],
+            );
+            $form['client_name'] = array(
+                '#type' => 'textfield',
+                '#default_value' => !empty($client_name[0]['value']) ? $client_name[0]['value'] : '',
+                '#size' => 60,
+                '#attributes' => array('class' => array('custmform')),
+                '#prefix' => '<div class="form-inline-field section3">',
+                '#suffix' => '</div></div>',
+                '#allowed_tags' => ['div',],
+            );
+            if (isset($travel_cat)) {
+                $term = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($travel_cat);
+                $catname = !empty($term) ? $term->getName() : '- None -';
+            } else {
+                $catname = "- None -";
+            }
+
+            $form['tcategory_markup'] = array(
+                '#markup' => '<div class="field custom-field field-travel-category field--label-inline">
+				<div class="form-required font-weight-bold section1">Travel Category</div>
+				<div class="field__item section2">' . $catname . '</div>
+				',
+                '#allowed_tags' => ['div',],
+            );
+            $form['travel_category'] = array(
+                '#type' => 'select',
+                '#default_value' => !empty($travel_cat) ? $travel_cat : '',
+                '#attributes' => array('class' => array('custmform')),
+                '#target_type' => 'taxonomy_term',
+                '#options' => array(t('- None -'), '1' => t('Billable to Client'), '2' => t('Non-billable to Client'), '3' => t('Bill to employee')),
+                '#prefix' => '<div class="form-inline-field section3">',
+                '#suffix' => '</div></div>',
+                '#allowed_tags' => ['div',],
+            );
+            if (isset($travel_sub_cat)) {
+                $term = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($travel_sub_cat);
+                $subcatname = !empty($term) ? $term->getName() : '- None -';
+            } else {
+                $subcatname = "- None -";
+            }
+            $form['tsubcategory_markup'] = array(
+                '#markup' => '<div class="field custom-field field-sub-travel-category field--label-inline">
+			<div class="form-required font-weight-bold section1">Travel Sub Category</div>
+            <div class="field__item section2">' . $subcatname . '</div><div class="form-inline-field section3">
+			',
+                '#allowed_tags' => ['div',],
+            );
+            $form['select_category'] = array(
+                '#type' => 'select',
+                '#options' => array(t('- Select -')),
+                '#default_value' => !empty($travel_sub_cat) ? $travel_sub_cat : '',
+                '#attributes' => array('class' => array('custmform')),
+                '#states' => array(
+                    'visible' => [
+                        [
+                            [':input[name="travel_category"]' => ['value' => '0']],
+                        ],
+                    ],
+                ),
+            );
+            $form['bill_category'] = array(
+                '#type' => 'select',
+                '#options' => array(t('- Select -'), '4' => t('Separately billable to client')),
+                '#default_value' => !empty($travel_sub_cat) ? $travel_sub_cat : '',
+                '#attributes' => array('class' => array('custmform')),
+                '#states' => array(
+                    'visible' => [
+                        [
+                            [':input[name="travel_category"]' => ['value' => '1']],
+                        ],
+                    ],
+                ),
+            );
+            $form['nonbill_category'] = array(
+                '#type' => 'select',
+                '#options' => array(t('-Select-'), '6' => t('FP project'), '7' => t('Sales meetings'), '8' => t('Dependent Travel'), '20' => t('Sales travel'), '21' => t('Re-location non billable'), '23' => t('Customer success'),
+                    '24' => t('Business meetings'), '25' => t('Event - Inspire'), '26' => t('Internal'), '27' => t('Annual Travel/ Final Travel'), '28' => t('Candidate')),
+                '#default_value' => !empty($travel_sub_cat) ? $travel_sub_cat : '',
+                '#attributes' => array('class' => array('custmform')),
+                '#states' => array(
+                    'visible' => [
+                        [
+                            [':input[name="travel_category"]' => ['value' => '2']],
+                        ],
+                    ],
+                ),
+            );
+            $form['bill_emp'] = array(
+                '#type' => 'select',
+                '#options' => array(t('-Select-'), '5' => t('Bill to employee')),
+                '#default_value' => !empty($travel_sub_cat) ? $travel_sub_cat : '',
+                '#attributes' => array('class' => array('custmform')),
+                '#states' => array(
+                    'visible' => [
+                        [
+                            [':input[name="travel_category"]' => ['value' => '3']],
+                        ],
+                    ],
+                ),
+            );
+            $paras = $node->field_itinerary->referencedEntities();
+            $depDate = $paras[0]->field_departure_date->value;
+            $ddate = new DrupalDateTime($depDate);
+            $start_date = $ddate->getTimestamp();
+            $depardate = format_date($start_date, 'custom', 'd-M-Y, l');
+            if (in_array('travel_desk_administrator', $roles)) {
+                $markup = '</div></div>';
+            } else {
+                $markup = '</div></div><div class="field custom-field field-departure-date field--label-inline">
+			<div class="form-required font-weight-bold section1">Departure Date</div>
+            <div class="field__item section2">' . $depardate . '</div>';
+            }
+            $form['ddate_markup'] = array(
+                '#markup' => $markup,
+                '#allowed_tags' => ['div',],
+            );
+            if (!in_array('travel_desk_administrator', $roles)) {
+                $form['departure_date'] = array(
+                    '#type' => 'date',
+                    '#default_value' => $depDate,
+                    '#attributes' => array('class' => array('custmform')),
+                    '#prefix' => '<div class="form-inline-field section3">',
+                    '#suffix' => '</div></div>',
+                    '#allowed_tags' => ['div',],
+                );
+                $ret_date = $paras[0]->field_return_date->value;
+                if (!empty($ret_date)) {
+                    $redate = new DrupalDateTime($ret_date);
+                    $start_date = $redate->getTimestamp();
+                    $retudate = format_date($start_date, 'custom', 'd-M-Y');
+                }
+                $retDate = !empty($retudate) ? $retudate : '- None -';
+                if ($travel_way[0]['value'] != "One way" && $travel_way[0]['value'] != "Multi-City") {
+                    $form['rdate_markup'] = array(
+                        '#markup' => '<div class="field custom-field field-return-date field--label-inline">
+				<div class="form-required font-weight-bold section1">Return Date</div>
+				<div class="field__item section2">' . $retDate . '</div>
+				',
+                        '#allowed_tags' => ['div',],
+                    );
+                    $form['return_date'] = array(
+                        '#type' => 'date',
+                        '#default_value' => $ret_date,
+                        '#attributes' => array('class' => array('custmform')),
+                        '#prefix' => '<div class="form-inline-field section3">',
+                        '#suffix' => '</div></div>',
+                        '#allowed_tags' => ['div',],
+                    );
+                }
+                $rep_Date = $paras[0]->field_date_of_reporting_to_clien->value;
+                if (!empty($rep_Date)) {
+                    $rdate = new DrupalDateTime($rep_Date);
+                    $startdate = $rdate->getTimestamp();
+                    $reportdate = format_date($startdate, 'custom', 'd-M-Y H:i:s A');
+                }
+                $reportDate = !empty($reportdate) ? $reportdate : '- None -';
+                $form['rpdate_markup'] = array(
+                    '#markup' => '<div class="field custom-field field-reporting-date field--label-inline">
+			<div class="font-weight-bold section1">Date of reporting to client</div>
+              <div class="field__item section2">' . $reportDate . '</div>',
+                    '#allowed_tags' => ['div',],
+                );
+                $form['reporting_datetime'] = array(
+                    '#type' => 'datetime',
+                    '#default_value' => new DrupalDateTime($rep_Date),
+                    '#attributes' => array('class' => array('custmform')),
+                    '#prefix' => '<div class="form-inline-field section3">',
+                    '#suffix' => '</div></div>',
+                    '#allowed_tags' => ['div',],
+                );
+            }
+            $form['#validate'][] = '_content_moderation_entity_moderation_form_validate';
+            $form['#submit'][] = 'send_emails_on_state_change';
+        }
+    }
+}
+
+function send_emails_on_state_change($form, FormStateInterface &$form_state) {
+    global $base_url;
+    $config = \Drupal::config('travel_emails_config.settings');
+    $configEmails = $config->get('emails');
+    $configTravelEmails = $config->get('travel_emails');
+    $current_user = \Drupal::currentUser();
+    $roles = $current_user->getRoles();
+    $newState = $form_state->getValue('new_state');
+    $node = \Drupal::routeMatch()->getParameter('node');
+    $nid = $node->id();
+    $nodeData = \Drupal\node\Entity\Node::load($nid);
+    // Get traveler information
+    $traveller = $nodeData->field_travelers_information->referencedEntities();
+    $travelers = array();
+    foreach ($traveller as $key => $travellers) {
+        $travelers[$key]['traveler_type'] = $travellers->field_traveler_type->value;
+        $travelers[$key]['traveler_empid'] = $travellers->field_traveler_employee_id->value;
+    }
+    // check whether others is selected
+    $keys = array_keys(array_column($travelers, 'traveler_type'), 'Others');
+    $key = array_search('Others', array_column($travelers, 'traveler_type'));
+    $found = count($keys);
+    $otherEmailId = ''; $otherEmployee_roles = array();
+    $other_traveler = travel_portal_check_other_traveler($traveller);
+    if (!empty($keys) && $found == 1) {
+        // Get emailId or other traveller
+        $emp_id = $travelers[$key]['traveler_empid'];
+        $query = \Drupal::entityQuery('user');
+        $userid = $query->condition('field_employee_id', $emp_id, '=')->execute();
+        if (!empty($userid)) {
+            $otherUserid = end(array_keys($userid));
+            $othersEmailid = \Drupal\user\Entity\User::load($otherUserid);
+            $otherEmailId = $othersEmailid->get('mail')->value;
+            $otherEmployee_roles = $othersEmailid->getRoles();
+        }
+    }
+    $travel_id = $nodeData->get('field_travel_id')->getValue()[0]['value'];
+    //add necessary headers for browsers
+
+    if ($other_traveler) {
+        $autherId = $nodeData->get('field_other_traveler_uid')->target_id;
+    } else {
+        $autherId = $nodeData->getOwnerId();
+    }
+    $user = \Drupal\user\Entity\User::load($autherId);
+    $authorEmail = $user->get('mail')->value;
+
+    if ($other_traveler) {
+        $traverlerAutherId = $nodeData->get('field_other_traveler_uid')->target_id;
+        $travelerUser = \Drupal\user\Entity\User::load($traverlerAutherId);
+        $pmId = $travelerUser->get('field_project_manager')->target_id;
+        $pmData = \Drupal\user\Entity\User::load($pmId);
+        $pmEmail = '';
+        if (!empty($pmData)) {
+            $pmEmail = $pmData->get('mail')->value;
+        }
+        $dltId = $travelerUser->get('field_dlt')->target_id;
+        $dltData = \Drupal\user\Entity\User::load($dltId);
+        $dtltEmail = '';
+        if (!empty($dltData)) {
+            $dtltEmail = $dltData->get('mail')->value;
+        }
+    } else {
+        $pmId = $user->get('field_project_manager')->target_id;
+        $pmData = \Drupal\user\Entity\User::load($pmId);
+        $pmEmail = '';
+        if (!empty($pmData)) {
+            $pmEmail = $pmData->get('mail')->value;
+        }
+        $dltId = $user->get('field_dlt')->target_id;
+        $dltData = \Drupal\user\Entity\User::load($dltId);
+        $dtltEmail = '';
+        if (!empty($dltData)) {
+            $dtltEmail = $dltData->get('mail')->value;
+        }
+    }
+    $currentuser_email = $current_user->getEmail();
+    $toEmails = '';
+    $status_message = '';
+    if (in_array('project_manager', $roles) || in_array('project_manager', $otherEmployee_roles) || in_array('dlt', $roles) || in_array('dlt', $otherEmployee_roles) || in_array('travel_desk_administrator', $roles) || in_array('administrator', $roles)) {
+        if ($newState == 'rejected') {
+            $toEmails = $authorEmail . ',' . $pmEmail;
+            $status_message = 'Request ID ' . $travel_id . ' has been rejected by PM';
+        } else if ($newState == 'pm_approved') {
+            $toEmails = $authorEmail . ',' . $dtltEmail . ',' . $pmEmail;
+            $status_message = 'Request ID ' . $travel_id . ' has been approved by PM';
+        } else if ($newState == 'dlt_rejected') {
+            $toEmails = $authorEmail . ',' . $dtltEmail . ',' . $pmEmail;
+            $status_message = 'Request ID ' . $travel_id . ' has been rejected by DLT';
+        } else if ($newState == 'closed') {
+            $configAcoomodationEmails = $config->get('accomodation_emails');
+            $international_emails = $config->get('international_emails');
+            // Attach csv file to email params
+            $fieldNames = _save_emailExcel($nodeData);
+            $file_name = 'travel-' . $nodeData->get('field_travel_id')->getValue()[0]['value'] . '.xlsx';
+            // Sending node file attachments and xlsx file
+            $file_uris = array();
+            foreach ($nodeData->field_reference_attachments as $key => $value) {
+                if ($value->entity) {
+                    $file_uris[$key]['filepath'] = $value->entity->getFileUri();
+                    $file_uris[$key]['filename'] = $value->entity->getFilename();
+                    $file_uris[$key]['filemime'] = $value->entity->getMimeType();
+                }
+            }
+            $request_details[] = array(
+                'filepath' => 'sites/default/files/travelattachments/' . $file_name,
+                'filename' => $file_name,
+                'filemime' => 'application/xlsx',
+            );
+            $file_uris = array_merge($file_uris, $request_details);
+            $attachment = $file_uris;
+            $toEmails = $authorEmail . ',' . $dtltEmail . ',' . $pmEmail . ',' . $configTravelEmails;
+            $itinerary_data = $nodeData->field_itinerary->referencedEntities();
+            //echo "<pre>";print_r($itinerary_data);die();
+            $isAccommodationRequired = 0;
+            foreach ($itinerary_data as $key => $itinerary_value) {
+                if ($itinerary_value->field_accommodation_required->value == "Yes") {
+                    $isAccommodationRequired = 1;
+                }
+            }
+            if ($isAccommodationRequired == 1) {
+                $toEmails .= "," . $configAcoomodationEmails;
+            }
+
+            $travel_way = $nodeData->get('field_travel_type')->getValue()[0]['value'];
+
+            if ($travel_way === "International") {
+                $toEmails .= "," . $international_emails;
+            }
+
+            $status_message = 'Request ID ' . $travel_id . ' has been approved by DLT';
+        } else if ($newState == 'published') {
+            $fieldNames = _save_emailExcel($nodeData);
+            $file_name = 'travel-' . $nodeData->get('field_travel_id')->getValue()[0]['value'] . '.xlsx';
+            // Sending node file attachments and xlsx file
+            $file_uris = array();
+            foreach ($nodeData->field_reference_attachments as $key => $value) {
+                if ($value->entity) {
+                    $file_uris[$key]['filepath'] = $value->entity->getFileUri();
+                    $file_uris[$key]['filename'] = $value->entity->getFilename();
+                    $file_uris[$key]['filemime'] = $value->entity->getMimeType();
+                }
+            }
+            $request_details[] = array(
+                'filepath' => 'sites/default/files/travelattachments/' . $file_name,
+                'filename' => $file_name,
+                'filemime' => 'application/xlsx',
+            );
+            $file_uris = array_merge($file_uris, $request_details);
+            $attachment = $file_uris;
+            $toEmails =  $authorEmail . ',' . $configTravelEmails;
+            $status_message = 'Request ID ' . $travel_id . ' is closed';
+        }
+    } else {
+        $toEmails .= $authorEmail . ',' . $pmEmail; // general emp
+    }
+    if (empty($toEmails)) {
+      $toEmails = $authorEmail . ',' . $pmEmail;
+    }
+    if (!empty($otherEmailId)) {
+        $toEmails.= "," . $otherEmailId;
+    }
+
+    $params['travel_values'] = $nodeData;
+    if (!empty($attachment)) {
+        $params['attachments'] = $attachment;
+    }
+    $mailManager = \Drupal::service('plugin.manager.mail');
+    $module = 'travel_portal';
+    $to = $toEmails;
+    $to .= ',' . $otherEmailId;
+    $key = 'state_updated'; // Replace with Your key
+    $langcode = \Drupal::currentUser()->getPreferredLangcode();
+    $send = true;
+    $to = implode(',', array_unique(explode(',', $to))); //removing duplicate emails if any
+    $toemails = $config->get('emails');
+    if ($config->get('email_settings') == 'prod') {
+        $toemails = $to;
+    }
+    $result = $mailManager->mail($module, $key, $toemails, $langcode, $params, NULL, $send);
+    $to = rtrim($to, ', ');
+    $to = str_replace(",", ", ", $to);
+    $to = str_replace(", ,", ", ", $to);
+    \Drupal::messenger()->deleteByType(MessengerInterface::TYPE_WARNING); //clear warning messages
+    if ($result['result'] != true) {
+        $message = t('There was a problem sending your email notification to @email.', array('@email' => $to));
+        drupal_set_message($message, 'error');
+        \Drupal::logger('mail-log')->error($message);
+        return;
+    }
+    if (!empty($status_message)) {
+        drupal_set_message($status_message);
+    }
+    $message = t('An email notification has been sent to @email ', array('@email' => $to));
+    drupal_set_message($message);
+    \Drupal::logger('mail-log')->notice($message);
+
+    if (in_array('project_manager', $roles) && !in_array('dlt', $roles)) {
+        $path = $base_url . '/pending-requests';
+    } else if (in_array('dlt', $roles)) {
+        $path = $base_url . '/pending-travel-requests';
+    } else if (in_array('travel_desk_administrator', $roles)) {
+        $path = $base_url . '/close-requests';
+    }
+
+    $response = new RedirectResponse($path);
+    $response->send();
+}
+
+/**
+ * Custom validate for content_moderation node form.
+ */
+function _content_moderation_entity_moderation_form_validate($form, FormStateInterface &$form_state) {
+    $bill_cat_id = $form_state->getValue('bill_category');
+    $nonbill_cat_id = $form_state->getValue('nonbill_category');
+    $billemp_cat_id = $form_state->getValue('bill_emp');
+    $sale_cat_id = $form_state->getValue('sale_travel');
+    $node = \Drupal::routeMatch()->getParameter('node');
+    $nid = $node->id();
+    $project_name = $form_state->getValue('project_name');
+    $node->set('field_project_name', $project_name);
+    $client_name = $form_state->getValue('client_name');
+    $node->set('field_client_name', $client_name);
+    $current_user = \Drupal::currentUser();
+    $roles = $current_user->getRoles();
+    if (!in_array('travel_desk_administrator', $roles)) {
+        $depart_date = $form_state->getValue('departure_date');
+        $return_date = !empty($form_state->getValue('return_date')) ? $form_state->getValue('return_date') : '';
+        $redate = strtotime($form_state->getValue('reporting_datetime'));
+        $report_datetime = date('Y-m-d\TH:i:s', $redate);
+        $para = $node->field_itinerary->referencedEntities();
+        $paragraph = Drupal\paragraphs\Entity\Paragraph::load($para[0]->id->value);
+        $paragraph->set('field_departure_date', $depart_date);
+        $paragraph->set('field_return_date', $return_date);
+        $paragraph->set('field_date_of_reporting_to_clien', $report_datetime);
+        $paragraph->setNewRevision(FALSE);
+        $paragraph->save();
+    }
+    $travel_cat = $form_state->getValue('travel_category');
+    $cattarget_id = array($travel_cat);
+    $node->set('field_travel_categories', $cattarget_id);
+
+    if (!empty($bill_cat_id)) {
+        $subcat_id = array($bill_cat_id);
+        $node->set('field_travel_sub_category', $subcat_id);
+    }
+    if (!empty($nonbill_cat_id)) {
+        $subcat_id = array($nonbill_cat_id);
+        $node->set('field_travel_sub_category', $subcat_id);
+    }
+    if (!empty($billemp_cat_id)) {
+        $subcat_id = array($billemp_cat_id);
+        $node->set('field_travel_sub_category', $subcat_id);
+    }
+    $travel_id = travel_portal_generate_travel_id($nid, $travel_cat);
+    $node->set('field_travel_id', $travel_id);
+    $node->setNewRevision(FALSE);
+    $node->save();
+}
+
+/**
+ * Implements hook_node_view_alter().
+ */
+function travel_portal_node_view_alter(array &$build, EntityInterface $entity, EntityViewDisplayInterface $display) {
+    if ($entity->getType() == 'travel_request') {
+        $current_path = \Drupal::request()->query->get('from');
+        if (($current_path == 'my_travel_requests')) {
+            return;
+        }
+        $node = \Drupal::routeMatch()->getParameter('node');
+        if (empty($node)) {
+            return;
+        }
+        $nid = $node->id();
+        $nodeData = \Drupal\node\Entity\Node::load($nid);
+        //_save_emailExcel($nodeData);
+        $current_user = \Drupal::currentUser();
+        $roles = $current_user->getRoles();
+        $moderation_state = $nodeData->get('moderation_state')->getValue()[0]['value'];
+
+        if (!((in_array('dlt', $roles) || in_array('slt', $roles)) && ($moderation_state == "dlt_rejected" || $moderation_state == "closed" || $moderation_state == "rejected"))) {
+            //echo "hi";die("936");
+            if ($entity->get('field_travel_categories')->isEmpty()) {
+                $build['travel_categories'] = array(
+                    '#markup' => '<div class="field field--label-inline">
+					<div class="field__label inline">Travel Category</div>
+					<div class="field__item">None</div>
+				</div>',
+                    '#allowed_tags' => ['div'],
+                    '#weight' => 1,
+                );
+                $build['#group_children']['travel_categories'] = 'group_project_details';
+                $build['field_project_name']['#weight'] = 0;
+            }
+            if ($entity->get('field_travel_sub_category')->isEmpty()) {
+                $build['travel_sub_category'] = array(
+                    '#markup' => '<div class="field field--label-inline">
+					<div class="field__label inline">Travel Sub Category</div>
+					<div class="field__item">None</div>
+				</div>',
+                    '#allowed_tags' => ['div'],
+                    '#weight' => 2,
+                );
+                $build['#group_children']['travel_sub_category'] = 'group_project_details';
+            }
+
+
+            $autherId = $nodeData->getOwnerId();
+            if (in_array('project_manager', $roles) || in_array('dlt', $roles) || in_array('slt', $roles) || in_array('travel_desk_administrator', $roles)) {
+                if (($current_path == 'pending')) {
+                    // Display message in case of deviation exist.
+                    if (in_array('project_manager', $roles) || in_array('dlt', $roles) || in_array('slt', $roles)) {
+                        $travel_mode_justification = $node->get('field_justification_travel_mode')->value;
+                        $itinerary = $node->field_itinerary->referencedEntities();
+                        $deviation_justification = [];
+                        foreach ($itinerary as $element) {
+                            if (!empty($element->field_justification_for_advance_->value)) {
+                                $deviation_justification[] = $element->field_justification_for_advance_->value;
+                            }
+                        }
+                        if ($travel_mode_justification != '' || !empty($deviation_justification)) {
+                            $message = t('Please note, this request contains deviations from policy and needs review.');
+                            drupal_set_message($message, 'error highlight-msg');
+                        }
+                    }
+                    $traveller = $node->field_travelers_information->referencedEntities();
+                    $traveller_name = '';
+                    foreach ($traveller as $element) {
+                        $traveller_name .= $element->field_first_name->value . ' ' . $element->field_second_name->value . ' ' . $element->field_surname->value . ", ";
+                    }
+                    $traveller_name = rtrim($traveller_name, ', ');
+                    $build['traveller_name'] = array(
+                        '#markup' => '<div class="field field--label-inline">
+						<div class="field__label inline">Traveler Name</div>
+						<div class="field__item">' . $traveller_name . '</div>
+						</div>',
+                        '#allowed_tags' => ['div'],
+                        '#weight' => 2,
+                    );
+                    $build['#group_children']['traveller_name'] = 'group_travel_details';
+                    if (!empty($node->get('field_employee_middle_name')->value)) {
+                        $middle_name = $node->get('field_employee_middle_name')->value . ' ';
+                    } else {
+                        $middle_name = '';
+                    }
+                    $requester_name = $node->get('field_employee_name')->value . ' ' . $middle_name . '' . $node->get('field_employee_last_name')->value;
+                    $build['requester_name'] = array(
+                        '#markup' => '<div class="field field--label-inline">
+						<div class="field__label inline">Requester Name</div>
+						<div class="field__item">' . $requester_name . '</div>
+						</div>',
+                        '#allowed_tags' => ['div'],
+                    );
+                    $build['#group_children']['requester_name'] = 'group_travel_details';
+                    $build['#fieldgroups']['group_travel_details']->format_settings['formatter'] = True;
+                    unset($build['#fieldgroups']['group_project_details']);
+                    unset($build['#fieldgroups']['group_employee_section']);
+                    unset($build['#fieldgroups']['group_travelers']);
+                    $build['title']['#access'] = FALSE;
+                    $build['field_client_name']['#access'] = FALSE;
+                    $build['field_project_details']['#access'] = FALSE;
+                    $build['field_employee_id']['#access'] = FALSE;
+                    $build['field_sfid_sales_travel']['#access'] = FALSE;
+                    $build['field_reference_attachments']['#access'] = FALSE;
+                    $build['field_accomodation_required']['#access'] = FALSE;
+                    $build['field_travel_categories']['#access'] = FALSE;
+                    $build['field_travel_sub_category']['#access'] = FALSE;
+                    $build['field_departure_date']['#access'] = FALSE;
+                    $build['field_return_date']['#access'] = FALSE;
+                    $build['field_date_reporting_to_client']['#access'] = FALSE;
+                }//soujanya
+            }
+        }
+    }
+}
+
+function travel_portal_entity_presave(Drupal\Core\Entity\EntityInterface $entity) {
+    $current_user = \Drupal::currentUser();
+    $roles = $current_user->getRoles();
+    if ($entity->bundle() !== 'travel_request') {
+        return;
+    }
+    //check Traveler type is 'Self' and first,middle, last names, passport number and validity details compare with "My Account->Travel Profile" details and update in it.
+    //exclude updating when PM/DLT/Traveldesk users approves/closes the request.
+    if (\Drupal::request()->get('form_id') != 'content_moderation_entity_moderation_form') {
+        $travelers = $entity->field_travelers_information->referencedEntities();
+        $user = \Drupal\user\Entity\User::load(\Drupal::currentUser()->id());
+        $field_traveler_type = 0;
+        foreach ($travelers as $key => $traveler) {
+            //skip traveldesk/admin user
+            if(strtolower($traveler->field_traveler_type->value) != 'self' || in_array('travel_desk_administrator', $roles) || in_array('administrator', $roles)) {
+                continue;
+            }
+            if (empty($user->field_first_name_as_per_passport->value) || $traveler->field_first_name->value != $user->field_first_name_as_per_passport->value) {
+                $user->field_first_name_as_per_passport->value = $traveler->field_first_name->value;
+                $field_traveler_type++;
+            }
+            if (empty($user->field_middle_name_as_per_passpor->value) || $traveler->field_second_name->value != $user->field_middle_name_as_per_passpor->value) {
+                $user->field_middle_name_as_per_passpor->value = $traveler->field_second_name->value;
+                $field_traveler_type++;
+            }
+            if (empty($user->field_last_name_as_per_passport->value) || $traveler->field_surname->value != $user->field_last_name_as_per_passport->value) {
+                $user->field_last_name_as_per_passport->value = $traveler->field_surname->value;
+                $field_traveler_type++;
+            }
+            if (empty($user->field_passport_number->value) || $traveler->field_passport_number->value != $user->field_passport_number->value) {
+                $user->field_passport_number->value = $traveler->field_passport_number->value;
+                $field_traveler_type++;
+            }
+            if (empty($user->field_passport_validity->value) || $traveler->field_passport_validity->value != $user->field_passport_validity->value) {
+                $user->field_passport_validity->value = $traveler->field_passport_validity->value;
+                $field_traveler_type++;
+            }
+        }
+        if ($field_traveler_type > 0) {
+            $user->save();
+        }
+    }
+    if (in_array('dlt', $roles)) {
+        if ($entity->getEntityTypeId() !== 'content_moderation_state') {
+            return;
+        }
+        $request_id = $entity->get('content_entity_id')->getString();
+        $request = \Drupal\node\Entity\Node::load($request_id);
+        if ($request->bundle() !== 'travel_request') {
+            return;
+        }
+    }
+}
+
+/* To Check if Others but not Self */
+
+function travel_portal_check_other_traveler($travellers) {
+    $is_other = FALSE;
+    $traveler_type = array();
+    foreach ($travellers as $traveller) {
+        $traveler_type[] = $traveller->field_traveler_type->value;
+    }
+    if (in_array('Others', $traveler_type) && !in_array('Self', $traveler_type)) {
+        $is_other = TRUE;
+    }
+    return $is_other;
+}
+
+function travel_portal_node_insert(Drupal\node\NodeInterface $node) {
+    if ($node->bundle() == 'travel_request') {
+        $nid = $node->id();
+        $cat_tid = $node->get('field_travel_categories')->getString();
+        $travel_id = travel_portal_generate_travel_id($nid, $cat_tid);
+        $node->set('field_travel_id', $travel_id);
+        $node->set('field_isnew', 'isnew');
+
+        /**
+         * Set field_other_traveler_uid field value for Workflow condition if user is creating travel request for others.
+         */
+        //If Requester is creating request for other and Other's Employee id is not empty.
+        $travellers = $node->field_travelers_information->referencedEntities();
+        $current_user = \Drupal::currentUser();
+        $current_uid = $current_user->id();
+        $traveler_emp_uid = $current_uid;
+        $other_traveler = travel_portal_check_other_traveler($travellers);
+        if ($other_traveler) {
+            //Set traveler_uid field as Traveler UID
+            $emp_id = $travellers[0]->field_traveler_employee_id->value;
+            $query = \Drupal::entityQuery('user');
+            $userid = $query->condition('field_employee_id', $emp_id, '=')
+                    ->execute();
+            $usid = end(array_keys($userid));
+            if (!empty($usid)) {
+                $node->set('field_other_traveler_uid', $usid);
+                $traveler_emp_uid = $usid;
+                $traveler_emp = \Drupal\user\Entity\User::load($traveler_emp_uid);
+                $traveler_emp_pmId = $traveler_emp->get('field_project_manager')->target_id;
+                if (empty($traveler_emp_pmId)) {
+                    $emp_data = new stdClass();
+                    $emp_data->EmployeeId = $emp_id;
+                    //Update pm/dlt/user-info from HRIS api for other traveler
+                    travel_hris_api_process_employee($emp_data, 'login');
+                }
+            } else {
+                $node->set('field_other_traveler_uid', $current_uid);
+            }
+        } else {
+            //Set traveler_uid field as auther UID.
+            $node->set('field_other_traveler_uid', $current_uid);
+        }
+        $node->setNewRevision(FALSE);
+
+        $user_info = \Drupal::entityTypeManager()->getStorage('user')->load($traveler_emp_uid);
+        $roles = $user_info->getRoles();
+        $field_project_manager = !empty($user_info->field_project_manager) ? $user_info->field_project_manager->target_id : '';
+        $field_dlt = !empty($user_info->field_dlt) ? $user_info->field_dlt->target_id : '';
+        $field_regional_manager = !empty($user_info->field_regional_manager) ? $user_info->field_regional_manager->target_id : '';
+
+        /*  Start - Workflow Validation  */
+        /* Workflow States and its action
+         *  draft - Request will sent to Program manager role for approval
+         *  pm_approved - Request will automatically get approval from Program manager role and Request will goto DLT/SLT Login for approval
+         *  closed - Request will automatically get approval from DLT/SLT and directly goto travel desk for final approval
+         */
+        // if user who submits had a role 'dlt' (or) he is his own 'DLT' Then workflow moderation state is set to "DLT Approval"
+
+        if (in_array('dlt', $roles) || in_array('slt', $roles) || ($field_dlt == $current_user->id())) {
+            $node->set('moderation_state', 'closed');
+        }
+        // This is for user who have 'Project Manager' role
+        if (!in_array('dlt', $roles) && !in_array('slt', $roles) && in_array('project_manager', $roles)) {
+            // If Project manager's Project Manager is not DLT AND user is not his own program manager, then the request will goto loggedin user Project Manager. So setting Workflow moderation state to 'Draft'
+            if (($field_project_manager != $field_dlt) && ($field_project_manager != $current_user->id())) {
+                $node->set('moderation_state', 'draft');
+            } else if (($field_project_manager != $field_dlt) && ($field_project_manager == $current_user->id())) { // If Project manager's Project Manager is not DLT AND user is his own program manager, then Project Manager approval skips here. So setting Workflow moderation state to 'PM Approval'
+                $node->set('moderation_state', 'pm_approved');
+            } else if (($field_project_manager == $field_dlt) && ($field_dlt == $current_user->id())) { // If Project manager's Project Manager is DLT, then the request will goto loggedin user DLT and Project Manager approval skips here. So setting Workflow moderation state to 'DLT Approved'
+                $node->set('moderation_state', 'closed');
+            } else if ($field_project_manager == $field_dlt) { // If Project manager's Project Manager is DLT, then the request will goto loggedin user DLT and Project Manager approval skips here. So setting Workflow moderation state to 'PM Approval'
+                $node->set('moderation_state', 'pm_approved');
+            }
+        }
+        // This is for user who dont have 'Project Manager' / 'DLT' / 'SLT' roles
+        //$node->enforceIsNew();
+        if (!in_array('dlt', $roles) && !in_array('slt', $roles) && !in_array('project_manager', $roles)) {
+            if ($field_project_manager != $field_dlt && $field_project_manager != $current_user->id()) {  // If user's Project manager and DLT is different then request goto Project Manager for approval, So workflow moderation state is set to 'draft'
+                $node->set('moderation_state', 'draft');
+            } else if ($field_project_manager != $field_dlt && $field_project_manager == $current_user->id()) {  // If users Project Manager and DLT is different and PM and auther is same than state is set as 'pm_approved'
+                $node->set('moderation_state', 'pm_approved');
+            } else if ($field_project_manager == $field_dlt) {  // If users Project Manager and DLT is same then approval skips Program manager and directly goto DLT for approval. So workflow moderation state is set to 'pm_approved'
+                $node->set('moderation_state', 'pm_approved');
+            }
+        }
+        /*  End - Workflow Validation  	 */
+        $node->setNewRevision(FALSE);
+        $node->save();
+    }
+}
+
+function travel_portal_generate_travel_id($travel_id, $cat_tid) {
+    if ($travel_id) {
+        if (strlen((string) $travel_id) < 8) {
+            $travel_id = sprintf("%08d", $travel_id);
+        }
+        if ($cat_tid) {
+            $term_name = \Drupal\taxonomy\Entity\Term::load($cat_tid)->name->value;
+            $cat_name = strtolower($term_name);
+            if ($cat_name) {
+                if ($cat_name == 'billable to client') {
+                    $travel_id = 'B' . $travel_id;
+                } else if ($cat_name == 'non-billable to client') {
+                    $travel_id = 'NB' . $travel_id;
+                } else if ($cat_name == 'bill to employee') {
+                    $travel_id = 'E' . $travel_id;
+                }
+            }
+        }
+    }
+    return $travel_id;
+}
+
+function travel_portal_field_widget_entity_reference_paragraphs_form_alter(&$element, &$form_state, $context) {
+    if ($element['#paragraph_type'] == 'travellers') {
+        $element['subform']['#attributes']['class'][] = 'approval-request-travellers-subform';
+    }
+
+    /** @var \Drupal\field\Entity\FieldConfig $field_definition */
+    $field_definition = $context['items']->getFieldDefinition();
+    $paragraph_entity_reference_field_name = $field_definition->getName();
+    $current_user = \Drupal::currentUser();
+    $roles = $current_user->getRoles();
+    if ($paragraph_entity_reference_field_name == 'field_itinerary') {
+        /** @see \Drupal\paragraphs\Plugin\Field\FieldWidget\ParagraphsWidget::formElement() */
+        $widget_state = \Drupal\Core\Field\WidgetBase::getWidgetState($element['#field_parents'], $paragraph_entity_reference_field_name, $form_state);
+
+        /** @var \Drupal\paragraphs\Entity\Paragraph $paragraph */
+        $paragraph_instance = $widget_state['paragraphs'][$element['#delta']]['entity'];
+        $paragraph_type = $paragraph_instance->bundle();
+        
+        if(in_array('employee', $roles)) {
+            //disable past dates in calender for the list of date fields
+            $disablePreviousDatesForFields = ['field_departure_date', 'field_date_of_reporting_to_clien', 'field_return_date'];
+            disablePreviousDatesSelectionForFields($disablePreviousDatesForFields, $element);
+        }        
+        
+        // Determine which paragraph type is being embedded.
+        if ($paragraph_type == 'multicity') {
+            $dependee_field_name = 'field_accommodation_required';
+            $selector = sprintf('select[name="%s[%d][subform][%s]"]', $paragraph_entity_reference_field_name, $element['#delta'], $dependee_field_name);
+
+            // Dependent fields.
+            $element['subform']['field_accomodation_preference']['#states'] = [
+                'visible' => [
+                    $selector => ['value' => 'Yes'],
+                ],
+                'enabled' => [
+                    $selector => ['value' => 'Yes'],
+                ],
+            ];
+            $address_dependee_field_name = 'field_accomodation_preference';
+            $address_selector = sprintf('select[name="%s[%d][subform][%s]"]', $paragraph_entity_reference_field_name, $element['#delta'], $address_dependee_field_name);
+
+            // Dependent fields.            
+            $element['subform']['field_address']['#states'] = [
+                'visible' => [
+                    $selector => ['value' => 'Yes'],
+                ],
+                'enabled' => [
+                    $selector => ['value' => 'Yes'],
+                ],
+            ];
+        }
+    }
+    if($paragraph_entity_reference_field_name == 'field_travelers_information' && in_array('employee', $roles)) {
+        //disable past dates in calender for the list of date fields
+        $disablePreviousDatesForFields = ['field_passport_validity', 'field_visa_validity'];
+        disablePreviousDatesSelectionForFields($disablePreviousDatesForFields, $element);
+    }
+}
+
+/**
+ * Disables the previous dates selection for specified fields in calender.
+ */
+function disablePreviousDatesSelectionForFields($disablePreviousDatesForFields = [], &$element) {
+    
+    foreach($disablePreviousDatesForFields as $fieldName) {
+        if(isset($element['subform'][$fieldName]['widget'][0]['value'])) {
+            $element['subform'][$fieldName]['widget'][0]['value'] += [
+                '#date_range' => '-80:0',
+                '#attributes' => [
+                    'min' =>  \Drupal::service('date.formatter')->format(REQUEST_TIME, 'custom', 'Y-m-d'),
+                ],
+            ];
+        }
+    }
+}
+
+/**
+ * Implements hook_element_info_alter().
+ */
+function travel_portal_element_info_alter(array &$types) {
+    // Alter dateteime fields
+    $current_user = \Drupal::currentUser();
+    $roles = $current_user->getRoles();
+    if (!in_array('administrator', $roles) && (!in_array('travel_desk_administrator', $roles))) {
+        $types['datetime']['#process'][] = 'travel_portal_datetime_set_startdate';
+    }
+}
+
+/**
+ * Custom function to alter HTML 5 date fields.
+ */
+function travel_portal_datetime_set_startdate($element) {
+    if (!empty($element['#parents'][3]) && ($element['#parents'][3] == 'field_departure_date' || $element['#parents'][3] == 'field_return_date' || $element['#parents'][3] == 'field_date_of_reporting_to_clien')) {
+        $date = new DrupalDateTime('today', DATETIME_STORAGE_TIMEZONE);
+        $start_date = $date->getTimestamp();
+        $element['date']['#attributes']['min'] = format_date($start_date, 'html_date');
+    }
+    return $element;
+}
+
+/**
+ * Custom function to get node data
+ */
+function _travel_request_node_value($node) {
+    if (empty($node)) {
+        return;
+    }
+    $traveller_info = array();
+    $traveller_info['node_url'] = $node->toUrl()->setAbsolute()->toString();
+    $traveller_info['node_title'] = $node->getTitle();
+    $traveller = $node->field_travelers_information->referencedEntities();
+    $other_traveler = travel_portal_check_other_traveler($traveller);
+    $other_empid = $node->get('field_other_traveler_uid')->target_id;
+    if ($other_traveler && !empty($other_empid)) {
+        $account = \Drupal\user\Entity\User::load($other_empid);
+    } else {
+        $account = \Drupal\user\Entity\User::load($node->getOwnerId());
+    }
+    if (!empty($account->get('field_project_manager')->target_id)) {
+        $projectManagerId = $account->get('field_project_manager')->target_id;
+        $project_manager = \Drupal\user\Entity\User::load($projectManagerId);
+        $traveller_info['manager_name'] = $project_manager->get('field_full_name')->value;
+    } else {
+        $traveller_info['manager_name'] = '';
+    }
+    if (!empty($account->get('field_dlt')->target_id)) {
+        $dltId = $account->get('field_dlt')->target_id;
+        $dlt = \Drupal\user\Entity\User::load($dltId);
+        $traveller_info['dlt_name'] = $dlt->get('field_full_name')->value;
+    } else {
+        $traveller_info['dlt_name'] = '';
+    }
+    $traveler_type = '';
+    $traveler = array();
+    foreach ($traveller as $key => $element) {
+        $traveler[$key]['traveller_name'] .= $element->field_first_name->value . ' ' . $element->field_second_name->value . ' ' . $element->field_surname->value;
+        $traveler_type .= $element->field_traveler_type->value . ", ";
+        $traveler[$key]['traveler_type'] = $element->field_traveler_type->value;
+        $traveler[$key]['traveler_first_name'] = $element->field_first_name->value;
+        $traveler[$key]['traveler_second_name'] = $element->field_second_name->value;
+        $traveler[$key]['traveler_surname'] = $element->field_surname->value;
+        $traveler[$key]['traveler_empid'] = $element->field_traveler_employee_id->value;
+        $traveler[$key]['traveler_passport_number'] = $element->field_passport_number->value;
+        $traveler[$key]['traveler_passport_validity'] = $element->field_passport_validity->value;
+        $traveler[$key]['traveler_visa_availability'] = $element->field_visa_availability->value;
+        $traveler[$key]['traveler_visa_validity'] = $element->field_visa_validity->value;
+        $traveler[$key]['traveler_email'] = "";
+        $traveler[$key]['traveler_emp_band'] = "";
+        $emp_id = $element->field_traveler_employee_id->value;
+        if (!empty($emp_id)) {
+            $query = \Drupal::entityQuery('user');
+            $userid = $query->condition('field_employee_id', $emp_id, '=')
+                    ->execute();
+            if (!empty($userid)) {
+                $user_id = end(array_keys($userid));
+                $userData = \Drupal\user\Entity\User::load($user_id);
+                if (!empty($userData)) {
+                    $traveler[$key]['traveler_email'] = $userData->get('mail')->value;
+                    $traveler[$key]['traveler_emp_band'] = $userData->get('field_employee_band')->value;
+                }
+            }
+        }
+        $traveler[$key]['traveler_emergency_contact'] = $element->field_emergency_contact_number->value;
+        $traveler[$key]['traveler_emergency_contact_person'] = $element->field_emergency_contact_person_n->value;
+    }
+    $traveller_info['traveler_count'] = count($traveler);
+    $traveller_info['traveler_details'] = $traveler;
+    $traveller_info['first_name'] = $traveller[0]->field_first_name->value;
+    $traveller_info['second_name'] = $traveller[0]->field_second_name->value;
+    $traveller_info['surname'] = $traveller[0]->field_surname->value;
+    $requester = \Drupal\user\Entity\User::load($node->getOwnerId());
+    $requestername = $requester->get('field_full_name')->value;
+    $traveller_info['requestername'] = $requestername;
+    $traveller_info['travel_id'] = $node->get('field_travel_id')->getValue()[0]['value'];
+    $traveller_info['moderation_state'] = $node->get('moderation_state')->getValue()[0]['value'];
+    $requester_name = $node->get('field_employee_name')->getValue()[0]['value'] . ' ' . $node->get('field_employee_middle_name')->getValue()[0]['value'] . ' ' . $node->get('field_employee_last_name')->getValue()[0]['value'];
+    $traveller_info['requester_name'] = $requester_name;
+    $traveller_info['last_updated'] = date('d-M-y', $node->getChangedTime());
+    $traveller_info['requested_date'] = date('d-M-y', strtotime($node->get('field_requested_date')->getValue()[0]['value']));
+    $traveller_info['emp_id'] = $node->get('field_employee_id')->getValue()[0]['value'];
+    $traveller_info['requested_by'] = $node->get('field_employee_id')->getValue()[0]['value'] . ' - ' . $requester_name;
+    $traveller_info['travel_mode'] = $node->get('field_mode_of_travel')->getValue()[0]['value'];
+    $traveller_info['requested_for'] = rtrim($traveler_type, ', ');
+    $traveller_info['travel_type'] = $node->get('field_travel_type')->getValue()[0]['value'];
+    $traveller_info['travel_way'] = $node->get('field_travel_way')->getValue()[0]['value'];
+    $traveller_info['email'] = $node->get('field_employee_email')->getValue()[0]['value'];
+    $traveller_info['contact'] = $node->get('field_employee_contact')->getValue()[0]['value'];
+    $itinerary_data = $node->field_itinerary->referencedEntities();
+    $itinerary = array();
+    foreach ($itinerary_data as $key => $itinerary_value) {
+        $from_country_id = $itinerary_value->field_from_country->target_id;
+        $itinerary[$key]['from_country'] = _get_term_name_value($from_country_id);
+        $to_country_id = $itinerary_value->field_to_country->target_id;
+        $itinerary[$key]['to_country'] = !empty($to_country_id) ? _get_term_name_value($to_country_id) : '';
+        $itinerary[$key]['from_city'] = $itinerary_value->field_from_city->value;
+        $itinerary[$key]['to_city'] = $itinerary_value->field_to_city->value;
+        $itinerary[$key]['departure'] = date('d-M-y', strtotime($itinerary_value->field_departure_date->value));
+        $itinerary[$key]['return'] = !empty($itinerary_value->field_return_date->value) ? date('d-M-y', strtotime($itinerary_value->field_return_date->value)) : '';
+        $itinerary[$key]['reporting_date'] = !empty($itinerary_value->field_date_of_reporting_to_clien->value) ? date('d-M-y', strtotime($itinerary_value->field_date_of_reporting_to_clien->value)) : '';
+        $itinerary[$key]['reporting_time'] = !empty($itinerary_value->field_date_of_reporting_to_clien->value) ? date('H:i A', strtotime($itinerary_value->field_date_of_reporting_to_clien->value)) : '';
+        $itinerary[$key]['accommodation'] = $itinerary_value->field_accommodation_required->value;
+        $itinerary[$key]['accommodation_prefered'] = $itinerary_value->field_accomodation_preference->value;
+        $itinerary[$key]['accommodation_address'] = $itinerary_value->field_address->value;
+        if (!empty($itinerary_value->field_justification_for_advance_->value)) {
+            $itinerary[$key]['justification'] = $itinerary_value->field_justification_for_advance_->value;
+        } else {
+            $itinerary[$key]['justification'] = t('NA');
+        }
+    }
+    $traveller_info['itineraries_count'] = count($itinerary);
+    $traveller_info['itineraries'] = $itinerary;
+    $traveller_info['project_name'] = $node->get('field_project_name')->getValue()[0]['value'];
+    $traveller_info['client_name'] = $node->get('field_client_name')->getValue()[0]['value'];
+    $travel_cat = $node->get('field_travel_categories')->target_id;
+    $travel_sub_cat = $node->get('field_travel_sub_category')->target_id;
+    $traveller_info['travel_category'] = _get_term_name_value($travel_cat);
+    $traveller_info['travel_sub_category'] = _get_term_name_value($travel_sub_cat);
+    $traveller_info['business_justification'] = $node->get('field_business_justification')->getValue()[0]['value'];
+    if (!empty($node->get('field_justification_travel_mode')->getValue()[0]['value'])) {
+        $traveller_info['eligibility_justification'] = $node->get('field_justification_travel_mode')->getValue()[0]['value'];
+    } else {
+        $traveller_info['eligibility_justification'] = t('NA');
+    }
+    if (!empty($node->get('field_sfid_sales_travel')->getValue()[0]['value'])) {
+        $traveller_info['sfid'] = $node->get('field_sfid_sales_travel')->getValue()[0]['value'];
+    } else {
+        $traveller_info['sfid'] = t('NA');
+    }
+    if (!empty($node->get('field_project_details')->getValue()[0]['value'])) {
+        $traveller_info['additional_details'] = $node->get('field_project_details')->getValue()[0]['value'];
+    } else {
+        $traveller_info['additional_details'] = t('NA');
+    }
+    $dlt_updated = '';
+    $pm_updated = '';
+    $current_user = \Drupal::currentUser();
+    $roles = $current_user->getRoles();
+    // PM and DLT approval date for travel desk
+    if (in_array('travel_desk_administrator', $roles)) {
+        // Get revision ids of node
+        $revision_ids = \Drupal::entityTypeManager()->getStorage('node')->revisionIds($node);
+        // Get last revision id
+        $last_revision_id = end($revision_ids);
+        // Get second last revision id
+        $second_last_revision_id = prev($revision_ids);
+        $last_revision = \Drupal::entityTypeManager()->getStorage('node')->loadRevision($last_revision_id);
+        // get moderation state from revision
+        $last_revision_state = $last_revision->get('moderation_state')->getString();
+        if ($last_revision_state == 'published') {
+            $dlt_updated = date('d-M-y', $last_revision->getChangedTime());
+        }
+        if (!empty($second_last_revision_id)) {
+            $second_last_revision = \Drupal::entityTypeManager()->getStorage('node')->loadRevision($second_last_revision_id);
+            $second_last_revision_state = $second_last_revision->get('moderation_state')->getString();
+            if ($second_last_revision_state == 'closed') {
+                $pm_updated = date('d-M-y', $second_last_revision->getChangedTime());
+            }
+        }
+    }
+    $traveller_info['pm_updated'] = $pm_updated;
+    $traveller_info['dlt_updated'] = $dlt_updated;
+    return $traveller_info;
+}
+
+/**
+ * Custom function to get term name
+ */
+function _get_term_name_value($termid) {
+    if (!empty($termid)) {
+        $term = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($termid);
+        $termname = !empty($term) ? $term->getName() : '';
+    } else {
+        $termname = '';
+    }
+    return $termname;
+}
+
+/**
+ * Implements hook_preprocess_HOOK().
+ *
+ * @param $variables
+ */
+function travel_portal_preprocess_status_messages(&$variables) {
+    if (isset($variables['message_list']['status'])) {
+        $status_messages = $variables['message_list']['status'];
+        foreach ($status_messages as $delta => $message) {
+            if ($message instanceof \Drupal\Component\Render\MarkupInterface) {
+                if ((string) $message == (string) ('The moderation state has been updated.')) {
+                    unset($variables['message_list']['status'][$delta]);
+                }
+                if (strpos($message, 'Travel Request ') !== false) {
+                    unset($variables['message_list']['status'][$delta]);
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Implements hook_views_query_alter().
+ *
+ */
+function travel_portal_views_query_alter(ViewExecutable $view, QueryPluginBase $query) {
+    if (($view->id() == 'reports' && $view->current_display == 'page_1')) {
+        $query->addField('node_field_data', 'nid', 'node_field_data_nid_pro', ['function' => 'groupby']);
+        $query->addGroupBy('node_field_data.nid');
+    }
+}
+
+/**
+ * Implements hook_menu_local_tasks_alter().
+ *
+ */
+function travel_portal_menu_local_tasks_alter(&$data, $route_name) {
+    if ($route_name == 'entity.node.canonical') {
+        // Get current user role.
+        $current_user = \Drupal::currentUser();
+        $roles = $current_user->getRoles();
+        // Delete edit tab for employee.
+        if (in_array('employee', $roles) || in_array('project_manager', $roles) || in_array('dlt', $roles) || in_array('travel_desk_administrator', $roles)) {
+            $node = \Drupal::routeMatch()->getParameter('node');
+            $nid = $node->id();
+            $node_type = $node->bundle();
+            $nodeData = \Drupal\node\Entity\Node::load($nid);
+            //Get moderation_state and display edit tab before any approval only.
+            $state = $nodeData->get('moderation_state')->getValue()[0]['value'];
+            if ($node_type == 'travel_request' && !in_array('travel_desk_administrator', $roles) && $state != 'draft') {
+                unset($data['tabs'][0]['entity.node.edit_form']);
+            }
+            //Traveldesk administrator should edit only approved DLT requests 
+            if ($node_type == 'travel_request' && in_array('travel_desk_administrator', $roles) && $state != 'closed') {
+                unset($data['tabs'][0]['entity.node.edit_form']);
+            }
+        }
+    }
+}
+
+/**
+ * Implements hook_views_pre_render().
+ *
+ */
+function travel_portal_views_pre_render(ViewExecutable $view) {
+    if ($view->id() == 'reports') {
+        foreach ($view->result as $key => $value) {
+            $num_days = '';
+            $current_date = strtotime(date('Y-m-d'));
+            $changed_date = $value->_entity->get('changed')->value;
+            $date_difference = $current_date - $changed_date;
+            $days = round($date_difference / (60 * 60 * 24));
+            $num_days = $days > 1 ? $days . 'days' : $days . 'day';
+            if ($days <= 0) {
+                $num_days = 'Today';
+            }
+            $status = $value->_entity->get('moderation_state')->value . ' - ' . $num_days;
+            $value->_entity->set('body', $num_days);
+
+            $nid = $value->_entity->get('nid')->value;
+            $node = \Drupal\node\Entity\Node::load($nid);
+            $data = _travel_request_node_value($node);
+            if ($data['moderation_state'] === 'draft') {
+                $approver = $data['manager_name'];
+            } else if ($data['moderation_state'] === 'pm_approved') {
+                $approver = $data['dlt_name'];
+            } else if ($data['moderation_state'] === 'closed') {
+                $approver = "Travel Desk";
+            } else {
+                $approver = "N/A";
+            }
+            $value->_entity->set('field_approver', $approver);
+        }
+    }
+}
+
+/* For title changes in node edit and user page */
+
+function travel_portal_preprocess_page_title(&$variables) {
+    $node = \Drupal::routeMatch()->getParameter('node');
+    $request = \Drupal::request();
+    $current_path = \Drupal::service('path.current')->getPath();
+    $path_args = array_filter(explode('/', $current_path));
+    //Condition added as we are not getting node object in revert
+    if (in_array('revert', $path_args)) {
+        return;
+    }
+    $arguments = array_values($path_args);
+    if ($node) {
+        if ($node->getType() == 'travel_request') {
+            if ($arguments[0] == 'node' && is_numeric($arguments[1]) && $arguments[2] == 'edit') {
+                $variables['title'] = "EDIT TRAVEL REQUEST - " . $node->getTitle();
+            }
+        }
+    }
+    if ($arguments[0] == 'user') {
+        if (is_numeric($arguments[1]) && $arguments[2] == 'edit') {
+            $userData = \Drupal\user\Entity\User::load($arguments[1]);
+            $fullName = $userData->get('field_full_name')->value;
+            if ($fullName != '') {
+                $variables['title'] = $fullName;
+            } else {
+                $variables['title'] = $userData->getUsername();
+            }
+        } else if (is_numeric($arguments[1]) && !array_key_exists('2', $arguments)) {
+            $userData = \Drupal\user\Entity\User::load($arguments[1]);
+            $fullName = $userData->get('field_full_name')->value;
+            if ($fullName != '') {
+                $variables['title'] = $fullName;
+            } else {
+                $variables['title'] = $userData->getUsername();
+            }
+        }
+    }
+}
+
+/**
+ * Implements hook_libraries_info().
+ */
+function travel_portal_libraries_info() {
+    return array(
+        'phpexcel' => array(
+            'name' => 'phpexcel',
+            'vendor url' => 'http://phpexcel.codeplex.com/',
+            'download url' => 'https://github.com/PHPOffice/PHPExcel',
+            'version arguments' => array(
+                'file' => 'changelog.txt',
+                'pattern' => "/(\d{4}-\d{2}-\d{2}\s+\(v([0-9\.]+)|@version\s+([0-9\.]+))/",
+                'lines' => 300,
+            ),
+            'path' => 'Classes',
+            'files' => array(
+                'php' => array(
+                    'PHPExcel.php',
+                ),
+            ),
+        ),
+    );
+}
+
+/**
+ * Implements hook_user_login.
+ */
+function travel_portal_user_login($account) {
+    $current_user = \Drupal::currentUser();
+    $current_user->getLastAccessedTime();
+    $emp_uid = $current_user->id();
+    if ($emp_uid) {
+        global $base_url;
+        //Redirect in case of password reset login
+        $redirect_path = $base_url . '/user/' . $emp_uid . '/edit';
+        $route_name = \Drupal::routeMatch()->getRouteName();
+        if ($route_name == 'user.reset.login') {
+            $response = new Symfony\Component\HttpFoundation\RedirectResponse($redirect_path);
+            $response->send();
+        }
+    }
+}
+
+/**
+ * Implements theme hook to customize mail template
+ * @param $existing
+ * @param $type
+ * @param $theme
+ * @param $path
+ * @return array
+ */
+function travel_portal_theme($existing, $type, $theme, $path)
+{
+    return array(
+        'mail_to_approve' => array(
+            'template' => 'mail-to-approve',  // TWIG File
+            'variables' => array('submitted_data' => array()),
+        )
+    );
+}
+
+/**
+ * Custom function to create xlsx
+ */
+function _save_emailExcel($node) {
+    global $base_url;
+
+    $data_array = _travel_request_node_value($node);
+    // delete previous file, generate new and save
+    if (file_exists($base_url . '/sites/default/files/travelattachments/travel-' . $data_array['travel_id'] . '.xlsx')) {
+        unlink($base_url . '/sites/default/files/travelattachments/travel-' . $data_array['travel_id'] . '.xlsx');
+    }
+
+    // Load phpexcel libraries
+    $library = libraries_load('phpexcel');
+    //Create object
+    $spreadsheet = new \PHPExcel();
+
+    //Add some data
+    $spreadsheet->setActiveSheetIndex(0);
+    $worksheet = $spreadsheet->getActiveSheet();
+
+    //Rename sheet
+    $worksheet->setTitle('Travel Details');
+
+    //Set style Title
+    $styleHeaderTitle = array(
+        'alignment' => array(
+            'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+        ),
+        'font' => array(
+            'bold' => true,
+            'size' => 11,
+            'name' => 'Calibri'
+    ));
+    //Set style align center
+    $alignCenter = array(
+        'alignment' => array(
+            'horizontal' => PHPExcel_Style_Alignment::HORIZONTAL_CENTER,
+        )
+    );
+
+    // Apply Dark header background and format
+    $worksheet->getStyle('A1:L1')->applyFromArray($styleHeaderTitle);
+    $worksheet->getStyle('A1:L1')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('8497B0');
+    $worksheet->mergeCells('A1:L1');
+    // Set Coulumn width
+    for ($i = 'A'; $i <= $worksheet->getHighestColumn(); $i++) {
+        $worksheet->getColumnDimension($i)->setAutoSize(TRUE);
+    }
+    $worksheet->getCell('A1')->setValue('Trip Request - ' . $data_array['node_title'] . ' - ' . $data_array['travel_id']);
+
+    //Apply light coulumn header background and values
+    $styleArrayTitle = array(
+        'font' => array(
+            'bold' => true,
+            'size' => 11,
+            'name' => 'Calibri'
+    ));
+    //Set Coulumn Header for Requester Data
+    $worksheet->getStyle('A2:L2')->applyFromArray($styleArrayTitle);
+    $worksheet->getStyle('A2:L2')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('D6DCE5');
+    $worksheet->getCell('A2')->setValue('Requested Date');
+    $worksheet->getCell('B2')->setValue('Requester Emp ID');
+    $worksheet->getCell('C2')->setValue('Requester Name');
+    $worksheet->getCell('D2')->setValue('Requester Contact');
+    $worksheet->getCell('E2')->setValue('Travel Type');
+    $worksheet->getCell('F2')->setValue('Travel Way');
+    $worksheet->getCell('G2')->setValue('Mode of Travel');
+    $worksheet->mergeCells('H2:L2');
+    $worksheet->getStyle('H2:L2')->applyFromArray($alignCenter);
+    $worksheet->getCell('H2')->setValue('Justification for deviation from flight eligibility');
+
+    //Set Coulumn values for Requester Data
+    $worksheet->getCell('A3')->setValue($data_array['requested_date']);
+    $worksheet->getCell('B3')->setValue($data_array['emp_id']);
+    $worksheet->getCell('C3')->setValue($data_array['requester_name']);
+    $worksheet->getCell('D3')->setValue($data_array['contact']);
+    $worksheet->getCell('E3')->setValue($data_array['travel_type']);
+    $worksheet->getCell('F3')->setValue($data_array['travel_way']);
+    $worksheet->getCell('G3')->setValue($data_array['travel_mode']);
+    $worksheet->mergeCells('H3:L3');
+    $worksheet->getStyle('H3:L3')->applyFromArray($alignCenter);
+    $worksheet->getCell('H3')->setValue($data_array['eligibility_justification']);
+    $worksheet->mergeCells('A4:L4');
+
+    //Set Coulumn Header for Traveller Date
+    $worksheet->getStyle('A5:L5')->applyFromArray($styleHeaderTitle);
+    $worksheet->getStyle('A5:L5')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('8497B0');
+    $worksheet->mergeCells('A5:L5');
+    $worksheet->getCell('A5')->setValue('Traveler Details');
+    $worksheet->getStyle('A6:L6')->applyFromArray($styleArrayTitle);
+    $worksheet->getStyle('A6:L6')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('D6DCE5');
+
+    $worksheet->getCell('A6')->setValue('Type');
+    $worksheet->mergeCells('B6:C6');
+    $worksheet->getStyle('B6:C6')->applyFromArray($alignCenter);
+    $worksheet->getCell('B6')->setValue('Name');
+    $worksheet->getCell('D6')->setValue('Employee ID');
+    $worksheet->getCell('E6')->setValue('Email');
+    $worksheet->getCell('F6')->setValue('Band');
+    $worksheet->getCell('G6')->setValue('Passport No');
+    $worksheet->getCell('H6')->setValue('Passport Validity');
+    $worksheet->getCell('I6')->setValue('Visa Available');
+    $worksheet->getCell('J6')->setValue('Visa Validity');
+    $worksheet->getCell('K6')->setValue('Emergency Contact');
+    $worksheet->getCell('L6')->setValue('Emergency Contact Person');
+    $worksheet->getCell('H2')->setValue('Justification for deviation from flight eligibility');
+
+    //Set Background        
+    $worksheet->getStyle('A6:L6')->applyFromArray($styleArrayTitle);
+    $worksheet->getStyle('A6:L6')->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('D6DCE5');
+    //Set index for dynamic rows
+    $rindex = 7;
+    foreach ($data_array['traveler_details'] as $tkey => $traveler) {
+        $rindex = $tkey + $rindex;
+        $worksheet->getCell('A' . $rindex)->setValue($traveler['traveler_type']);
+        $worksheet->mergeCells('B' . $rindex . ':C' . $rindex);
+        $worksheet->getStyle('B' . $rindex . ':C' . $rindex)->applyFromArray($alignCenter);
+        $worksheet->getCell('B' . $rindex)->setValue($traveler['traveller_name']);
+        $worksheet->getCell('D' . $rindex)->setValue($traveler['traveler_empid']);
+        $worksheet->getCell('E' . $rindex)->setValue($traveler['traveler_email']);
+        $worksheet->getCell('F' . $rindex)->setValue($traveler['traveler_emp_band']);
+        $worksheet->getCell('G' . $rindex)->setValue($traveler['traveler_passport_number']);
+        $worksheet->getCell('H' . $rindex)->setValue($traveler['traveler_passport_validity']);
+        $worksheet->getCell('I' . $rindex)->setValue($traveler['traveler_visa_availability']);
+        $worksheet->getCell('J' . $rindex)->setValue($traveler['traveler_visa_validity']);
+        $worksheet->getCell('K' . $rindex)->setValue($traveler['traveler_emergency_contact']);
+        $worksheet->getCell('L' . $rindex)->setValue($traveler['traveler_emergency_contact_person']);
+        if ($data_array['traveler_count'] > 1) {
+            $rindex + 1;
+        }
+    }
+
+    $emptyline = $rindex + 1;
+    $worksheet->mergeCells('A' . $emptyline . ':L' . $emptyline);
+
+    $itinarary_index = $emptyline + 1;
+
+    $worksheet->getStyle('A' . $itinarary_index . ':L' . $itinarary_index)->applyFromArray($styleHeaderTitle);
+    $worksheet->getStyle('A' . $itinarary_index . ':L' . $itinarary_index)->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('8497B0');
+    $worksheet->mergeCells('A' . $itinarary_index . ':L' . $itinarary_index);
+    $worksheet->getCell('A' . $itinarary_index)->setValue('Itinerary Details');
+    $itinarary_header_index = $itinarary_index + 1;
+    $worksheet->getStyle('A' . $itinarary_header_index . ':L' . $itinarary_header_index)->applyFromArray($styleArrayTitle);
+    $worksheet->getStyle('A' . $itinarary_header_index . ':L' . $itinarary_header_index)->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('D6DCE5');
+    // Set itinary header
+    $worksheet->getCell('A' . $itinarary_header_index)->setValue('From Country');
+    $worksheet->getCell('B' . $itinarary_header_index)->setValue('From City');
+    $worksheet->getCell('C' . $itinarary_header_index)->setValue('To Country');
+    $worksheet->getCell('D' . $itinarary_header_index)->setValue('To City');
+    $worksheet->getCell('E' . $itinarary_header_index)->setValue('Date of Depature');
+    $worksheet->getCell('F' . $itinarary_header_index)->setValue('Return Date');
+    $worksheet->getCell('G' . $itinarary_header_index)->setValue('Date of Reporting');
+    $worksheet->getCell('H' . $itinarary_header_index)->setValue('Time of Reporting');
+    $worksheet->getCell('I' . $itinarary_header_index)->setValue('Accomodation require');
+    $worksheet->getCell('J' . $itinarary_header_index)->setValue('Accomodation Preference');
+    $worksheet->getCell('K' . $itinarary_header_index)->setValue('Preferred Address');
+    $worksheet->getCell('L' . $itinarary_header_index)->setValue('Justification from deviation');
+
+    //Set index for itinarary values
+    $itinarary_data_index = $itinarary_header_index + 1;
+    foreach ($data_array['itineraries'] as $key => $itineraries) {
+        $itinarary_data_index = $key + $itinarary_data_index;
+        $worksheet->getCell('A' . $itinarary_data_index)->setValue($itineraries['from_country']);
+        $worksheet->getCell('B' . $itinarary_data_index)->setValue($itineraries['from_city']);
+        $worksheet->getCell('C' . $itinarary_data_index)->setValue($itineraries['to_country']);
+        $worksheet->getCell('D' . $itinarary_data_index)->setValue($itineraries['to_city']);
+        $worksheet->getCell('E' . $itinarary_data_index)->setValue($itineraries['departure']);
+        $worksheet->getCell('F' . $itinarary_data_index)->setValue($itineraries['return']);
+        $worksheet->getCell('G' . $itinarary_data_index)->setValue($itineraries['reporting_date']);
+        $worksheet->getCell('H' . $itinarary_data_index)->setValue($itineraries['reporting_time']);
+        $worksheet->getCell('I' . $itinarary_data_index)->setValue($itineraries['accommodation']);
+        $worksheet->getCell('J' . $itinarary_data_index)->setValue($itineraries['accommodation_prefered']);
+        $worksheet->getCell('K' . $itinarary_data_index)->setValue($itineraries['accommodation_address']);
+        $worksheet->getCell('L' . $itinarary_data_index)->setValue($itineraries['justification']);
+        if ($data_array['itineraries_count'] > 1) {
+            $itinarary_data_index + 1;
+        }
+    }
+
+    $itinarary_emptyline = $itinarary_data_index + 1;
+    $worksheet->mergeCells('A' . $itinarary_emptyline . ':L' . $itinarary_emptyline);
+
+    $project_details_index = $itinarary_emptyline + 1;
+
+    $worksheet->getStyle('A' . $project_details_index . ':L' . $project_details_index)->applyFromArray($styleHeaderTitle);
+    $worksheet->getStyle('A' . $project_details_index . ':L' . $project_details_index)->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('8497B0');
+    $worksheet->mergeCells('A' . $project_details_index . ':L' . $project_details_index);
+    $worksheet->getCell('A' . $project_details_index)->setValue('Project Details');
+    $project_details_header_index = $project_details_index + 1;
+    $worksheet->getStyle('A' . $project_details_header_index . ':L' . $project_details_header_index)->applyFromArray($styleArrayTitle);
+    $worksheet->getStyle('A' . $project_details_header_index . ':L' . $project_details_header_index)->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('D6DCE5');
+
+    // Set Project Details header
+
+    $worksheet->mergeCells('A' . $project_details_header_index . ':B' . $project_details_header_index);
+    $worksheet->getStyle('A' . $project_details_header_index . ':B' . $project_details_header_index)->applyFromArray($alignCenter);
+    $worksheet->getCell('A' . $project_details_header_index)->setValue('Project Name');
+    $worksheet->getCell('C' . $project_details_header_index)->setValue('Client');
+    $worksheet->getCell('D' . $project_details_header_index)->setValue('Travel Category');
+    $worksheet->mergeCells('E' . $project_details_header_index . ':F' . $project_details_header_index);
+    $worksheet->getStyle('E' . $project_details_header_index . ':F' . $project_details_header_index)->applyFromArray($alignCenter);
+    $worksheet->getCell('E' . $project_details_header_index)->setValue('Travel Sub Category');
+    $worksheet->mergeCells('G' . $project_details_header_index . ':I' . $project_details_header_index);
+    $worksheet->getStyle('G' . $project_details_header_index . ':I' . $project_details_header_index)->applyFromArray($alignCenter);
+    $worksheet->getCell('G' . $project_details_header_index)->setValue('Business Justification');
+    $worksheet->getCell('J' . $project_details_header_index)->setValue('SFID For Sales');
+    $worksheet->mergeCells('K' . $project_details_header_index . ':L' . $project_details_header_index);
+    $worksheet->getStyle('K' . $project_details_header_index . ':L' . $project_details_header_index)->applyFromArray($alignCenter);
+    $worksheet->getCell('K' . $project_details_header_index)->setValue('Additional Details');
+
+    //Set index for itinarary values
+    $project_details_data_index = $project_details_header_index + 1;
+    $worksheet->mergeCells('A' . $project_details_data_index . ':B' . $project_details_data_index);
+    $worksheet->getStyle('A' . $project_details_data_index . ':B' . $project_details_data_index)->applyFromArray($alignCenter);
+    $worksheet->getCell('A' . $project_details_data_index)->setValue($data_array['project_name']);
+    $worksheet->getCell('C' . $project_details_data_index)->setValue($data_array['client_name']);
+    $worksheet->getCell('D' . $project_details_data_index)->setValue($data_array['travel_category']);
+    $worksheet->mergeCells('E' . $project_details_data_index . ':F' . $project_details_data_index);
+    $worksheet->getStyle('E' . $project_details_data_index . ':F' . $project_details_data_index)->applyFromArray($alignCenter);
+    $worksheet->getCell('E' . $project_details_data_index)->setValue($data_array['travel_sub_category']);
+    $worksheet->mergeCells('G' . $project_details_data_index . ':I' . $project_details_data_index);
+    $worksheet->getStyle('G' . $project_details_data_index . ':I' . $project_details_data_index)->applyFromArray($alignCenter);
+    $worksheet->getCell('G' . $project_details_data_index)->setValue($data_array['business_justification']);
+    $worksheet->getCell('J' . $project_details_data_index)->setValue($data_array['sfid']);
+    $worksheet->mergeCells('K' . $project_details_data_index . ':L' . $project_details_data_index);
+    $worksheet->getStyle('K' . $project_details_data_index . ':L' . $project_details_data_index)->applyFromArray($alignCenter);
+    $worksheet->getCell('K' . $project_details_data_index)->setValue($data_array['additional_details']);
+
+    if ($data_array['moderation_state'] != 'draft') {
+        // Set empty lines after project details
+        $project_details_emptyline = $project_details_data_index + 1;
+        $worksheet->mergeCells('A' . $project_details_emptyline . ':L' . $project_details_emptyline);
+
+        // Set approver index
+        $approver_index = $project_details_emptyline + 1;
+
+        $worksheet->getStyle('A' . $approver_index . ':L' . $approver_index)->applyFromArray($styleHeaderTitle);
+        $worksheet->getStyle('A' . $approver_index . ':L' . $approver_index)->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('8497B0');
+        $worksheet->mergeCells('A' . $approver_index . ':L' . $approver_index);
+        $worksheet->getCell('A' . $approver_index)->setValue('Approval Details');
+        $approver_header_index = $approver_index + 1;
+        $worksheet->getStyle('A' . $approver_header_index . ':L' . $approver_header_index)->applyFromArray($styleArrayTitle);
+        $worksheet->getStyle('A' . $approver_header_index . ':L' . $approver_header_index)->getFill()->setFillType(\PHPExcel_Style_Fill::FILL_SOLID)->getStartColor()->setARGB('D6DCE5');
+
+        // Set approver header
+        $worksheet->mergeCells('A' . $approver_header_index . ':C' . $approver_header_index);
+        $worksheet->getStyle('A' . $approver_header_index . ':C' . $approver_header_index)->applyFromArray($alignCenter);
+        $worksheet->getCell('A' . $approver_header_index)->setValue('Approver 1 (Project Manager)');
+        $worksheet->getCell('D' . $approver_header_index)->setValue('Approved On');
+        $worksheet->mergeCells('E' . $approver_header_index . ':G' . $approver_header_index);
+        $worksheet->getStyle('E' . $approver_header_index . ':G' . $approver_header_index)->applyFromArray($alignCenter);
+        $worksheet->getCell('E' . $approver_header_index)->setValue('Approver 2 (DLT)');
+        $worksheet->getCell('H' . $approver_header_index)->setValue('Approved On');
+        //Set index for approver values
+        $pm_updated = "";
+        if ($data_array['moderation_state'] == 'pm_approved') {
+            $date = new DrupalDateTime('today', DATETIME_STORAGE_TIMEZONE);
+            $todate_value = $date->getTimestamp();
+            $pm_updated = format_date($todate_value, 'custom', 'd-M-Y');
+        } elseif ($data_array['moderation_state'] == 'closed' && !empty($data_array['manager_name'])) {
+            $pm_updated = $data_array['last_updated'];
+        } elseif ($data_array['moderation_state'] == 'published' && !empty($data_array['manager_name'])) {
+            $pm_updated = $data_array['pm_updated'];
+        }
+        $dlt_updated = "";
+        if ($data_array['moderation_state'] == 'closed' && !empty($data_array['dlt_name'])) {
+            $dlt_updated = $data_array['last_updated'];
+        } elseif ($data_array['moderation_state'] == 'published' && !empty($data_array['dlt_name'])) {
+            $dlt_updated = $data_array['dlt_updated'];
+        }
+        $approver_data_index = $approver_header_index + 1;
+        $worksheet->mergeCells('A' . $approver_data_index . ':C' . $approver_data_index);
+        $worksheet->getStyle('A' . $approver_data_index . ':C' . $approver_data_index)->applyFromArray($alignCenter);
+        $worksheet->getCell('A' . $approver_data_index)->setValue($data_array['manager_name']);
+        $worksheet->getCell('D' . $approver_data_index)->setValue($pm_updated);
+        $worksheet->mergeCells('E' . $approver_data_index . ':G' . $approver_data_index);
+        $worksheet->getStyle('E' . $approver_data_index . ':G' . $approver_data_index)->applyFromArray($alignCenter);
+        $worksheet->getCell('E' . $approver_data_index)->setValue($data_array['dlt_name']);
+        $worksheet->getCell('H' . $approver_data_index)->setValue($dlt_updated);
+    }
+
+    $writer = new \PHPExcel_Writer_Excel2007($spreadsheet);
+    // Save file
+    $writer->save('sites/default/files/travelattachments/travel-' . $data_array['travel_id'] . '.xlsx');
+    return;
+}
+
+/**
+ * On add/edit travel request fetches user & travel profile data. when user selects 'Self' trveler type then this data is get populated.
+ **/
+function getTravelerProfileInfo($user_info) {
+	$login_user_info = array();
+	$login_user_info['empid'] = !empty($user_info->field_employee_id) ? $user_info->field_employee_id->value : '';
+	$login_user_info['fname'] = !empty($user_info->field_name) ? $user_info->field_name->value : '';
+	$login_user_info['fnameAsPerPassport'] = !empty($user_info->field_first_name_as_per_passport->value) ? $user_info->field_first_name_as_per_passport->value : '';
+	$login_user_info['mname'] = !empty($user_info->field_second_name) ? $user_info->field_second_name->value : '';
+	$login_user_info['mnameAsPerPassport'] = !empty($user_info->field_middle_name_as_per_passpor->value) ? $user_info->field_middle_name_as_per_passpor->value : '';
+	$login_user_info['lname'] = !empty($user_info->field_surname) ? $user_info->field_surname->value : '';
+	$login_user_info['lnameAsPerPassport'] = !empty($user_info->field_last_name_as_per_passport->value) ? $user_info->field_last_name_as_per_passport->value : '';
+	$login_user_info['gender'] = !empty($user_info->field_gender) ? $user_info->field_gender->value : '';
+	$login_user_info['band'] = !empty($user_info->field_employee_band) ? $user_info->field_employee_band->value : '';
+	$login_user_info['pnumber'] = !empty($user_info->field_passport_number->value) ? $user_info->field_passport_number->value : '';
+	$pvalidity = '';
+	if (!empty($user_info->field_passport_validity->value)) {
+		$pvDate = new DrupalDateTime($user_info->field_passport_validity->value);
+		$pvalidity = format_date($pvDate->getTimestamp(), 'custom', 'Y-m-d');
+	}
+	$login_user_info['pvalidity'] = $pvalidity;
+	
+	return $login_user_info;
+}
+
+function travel_portal_node_access($node, $op, $account) {
+    //to prevent closed requests visible before login
+    if ($account->isAnonymous() && $node->gettype() == 'travel_request') {
+        return AccessResult::forbidden()->cachePerPermissions();
+    }
+    return AccessResult::neutral()->cachePerPermissions();
+}
+
+/**
+ * Implements comment form alter
+ * @param $form
+ * @param $form_state
+ */
+function travel_portal_form_comment_comment_form_alter(&$form, &$form_state)
+{
+    if (isset($form['actions']['submit'])) { // rename default submit button
+        $form['actions']['submit']['#value'] = t('Post Comment');
+    }
+
+    if (isset($form['actions']['preview'])) { // disable comments preview
+        $form['actions']['preview']['#access'] = FALSE;
+    }
+}
+

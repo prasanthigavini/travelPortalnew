@@ -1,0 +1,48 @@
+From 4e1bbfdffc7b0883cbc7cfc2b5efbeeedbc9d0e0 Mon Sep 17 00:00:00 2001
+From: ozin <mykhailo.gurei@gmail.com>
+Date: Fri, 27 May 2016 01:27:54 +0300
+Subject: [PATCH] Issue #2729569 by ozin: Fixed accordion.
+
+---
+ formatters/accordion/accordion.js                            | 4 ++--
+ src/Plugin/field_group/FieldGroupFormatter/AccordionItem.php | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/formatters/accordion/accordion.js b/formatters/accordion/accordion.js
+index cd8ae23..3abdf88 100644
+--- a/formatters/accordion/accordion.js
++++ b/formatters/accordion/accordion.js
+@@ -7,7 +7,7 @@
+    */
+   Drupal.FieldGroup.Effects.processAccordion = {
+     execute: function (context, settings, group_info) {
+-      $('div.field-group-accordion-wrapper', context).once('fieldgroup-effects', function () {
++      $('div.field-group-accordion-wrapper', context).once('fieldgroup-effects').each(function () {
+         var wrapper = $(this);
+ 
+         // Get the index to set active.
+@@ -32,7 +32,7 @@
+           }
+         });
+ 
+-        if (type === 'form') {
++        if (group_info.context === 'form') {
+ 
+           var $firstErrorItem = false;
+ 
+diff --git a/src/Plugin/field_group/FieldGroupFormatter/AccordionItem.php b/src/Plugin/field_group/FieldGroupFormatter/AccordionItem.php
+index 9e79e95..ded5f4b 100644
+--- a/src/Plugin/field_group/FieldGroupFormatter/AccordionItem.php
++++ b/src/Plugin/field_group/FieldGroupFormatter/AccordionItem.php
+@@ -37,7 +37,7 @@ class AccordionItem extends FieldGroupFormatterBase {
+ 
+     $element += array(
+       '#type' => 'field_group_accordion_item',
+-      '#collapsed' => $this->getSetting('formatter'),
++      '#collapsed' => $this->getSetting('formatter') == 'open' ? TRUE : FALSE,
+       '#description' => $this->getSetting('description'),
+       '#title' => Drupal::translation()->translate($this->getLabel()),
+     );
+-- 
+2.7.4
+
